@@ -175,22 +175,48 @@ cmd_status() {
 # ==============================================================================
 # diff / apply
 # ==============================================================================
+# 文件级摘要。首次安装时所有目标都是新文件，完整 diff 会把
+# starship.toml、dotgraft 等内容整份打印出来，没有可读性。
+print_status_summary() {
+  local status_out="$1" count
+  count="$(printf '%s\n' "$status_out" | grep -c . || true)"
+  note "待改动 $count 项："
+  printf '%s\n' "$status_out" | sed 's/^/      /'
+}
+
 cmd_diff() {
   require_dotgraft_source
-  local out
-  out="$(chezmoi_dg diff --no-pager --exclude=scripts 2>&1 || true)"
-  if [[ -z "$out" ]]; then
+  local full=0 arg status_out
+  for arg in "$@"; do
+    case "$arg" in
+      --full) full=1 ;;
+      *)
+        die "未知参数: $arg。用法: dotgraft diff [--full]"
+        ;;
+    esac
+  done
+
+  status_out="$(chezmoi_dg status --exclude=scripts 2> /dev/null || true)"
+  if [[ -z "$status_out" ]]; then
     note "没有待应用的文件改动（依赖脚本不在此预览）。"
+    return 0
+  fi
+
+  print_status_summary "$status_out"
+  if [[ "$full" -eq 1 ]]; then
+    printf '\n--- 完整 diff ---\n'
+    chezmoi_dg diff --exclude=scripts
   else
-    printf '%s\n' "$out"
+    printf '\n'
+    note "查看完整 diff: dotgraft diff --full"
   fi
 }
 
 cmd_apply() {
   require_dotgraft_source
-  local out
-  out="$(chezmoi_dg diff --no-pager --exclude=scripts 2>&1 || true)"
-  if [[ -z "$out" ]]; then
+  local status_out
+  status_out="$(chezmoi_dg status --exclude=scripts 2> /dev/null || true)"
+  if [[ -z "$status_out" ]]; then
     note "没有待应用的文件改动。"
     # 仍然跑一次 apply：文件没变不代表 run_onchange 脚本没变，
     # 例如只改了 Brewfile 时，依赖安装必须有机会执行。
@@ -199,7 +225,8 @@ cmd_apply() {
     return 0
   fi
 
-  printf '%s\n\n' "$out"
+  print_status_summary "$status_out"
+  printf '\n'
   confirm "应用这些改动？" || {
     printf '    已取消。\n'
     APPLY_CANCELED=1
@@ -605,7 +632,7 @@ dotgraft —— 终端配置管理
 
 命令:
   status        当前选配、文件差异、版本
-  diff          预览将要发生的改动
+  diff [--full] 预览改动摘要；--full 查看完整 diff
   apply         预览并应用改动
   update        拉取上游更新并应用（含依赖）
   deps          无条件安装/修复 Homebrew 依赖
@@ -630,7 +657,7 @@ main() {
 
   case "$cmd" in
     status) cmd_status ;;
-    diff) cmd_diff ;;
+    diff) cmd_diff "$@" ;;
     apply) cmd_apply ;;
     update) cmd_update ;;
     deps) cmd_deps ;;

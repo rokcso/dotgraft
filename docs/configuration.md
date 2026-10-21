@@ -197,7 +197,8 @@ dotgraft diff       # 确认落点对不对
 
 ```bash
 dotgraft status                  # 选配、差异、版本
-dotgraft diff                    # 预览
+dotgraft diff                    # 文件摘要
+dotgraft diff --full             # 完整 diff
 dotgraft apply                   # 应用
 dotgraft deps                    # 安装/修复依赖
 dotgraft update                  # 拉上游、预览、应用、修依赖

@@ -235,11 +235,15 @@ verify_dotgraft_source
 # ==============================================================================
 step "将要发生的改动"
 
-diff_output="$(chezmoi_dg diff --no-pager --exclude=scripts 2>&1 || true)"
-if [[ -z "$diff_output" ]]; then
-  note "没有待应用的改动，已经是最新的。"
+status_output="$(chezmoi_dg status --exclude=scripts 2> /dev/null || true)"
+if [[ -z "$status_output" ]]; then
+  note "没有待应用的文件改动，已经是最新的。"
 else
-  printf '%s\n\n' "$diff_output"
+  change_count="$(printf '%s\n' "$status_output" | grep -c . || true)"
+  note "将改动 $change_count 项："
+  printf '%s\n' "$status_output" | sed 's/^/      /'
+  printf '\n'
+  note "首次安装大多是新建文件，完整 diff 可在安装后用 dotgraft diff --full 查看。"
   confirm "应用以上改动？" || {
     printf '\n已取消，未应用配置。\n'
     exit 0

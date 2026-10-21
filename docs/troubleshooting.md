@@ -253,6 +253,18 @@ dotgraft chezmoi purge --force
 
 `dotgraft update` 先 `git pull`，再检查 `.chezmoi.toml.tmpl` 是否变化。变化时会重新运行 `chezmoi init`，避免上游新增 data key 后模板渲染失败。按提示回答即可。
 
+## `dotgraft diff` 输出太长
+
+`dotgraft diff` 默认只显示 `chezmoi status` 的文件摘要，适合确认“会改哪些文件”。首次安装时所有目标都是新文件，完整 diff 会把整份 `starship.toml`、`dotgraft` 脚本打印出来，所以默认不显示。
+
+要看逐行补丁：
+
+```bash
+dotgraft diff --full
+```
+
+bootstrap 首次安装也只显示摘要，避免一屏都是新增文件内容。
+
 ## `dotgraft doctor` 里的 age / 1Password / Bitwarden 是什么
 
 `dotgraft doctor` 现在只检查 Dotgraft 自己的环境：macOS、Shell、Homebrew、chezmoi、独立 source/config、`.zshrc` 区块、受管文件、选配工具、Starship、Ghostty、字体和 Ghostty 覆盖文件。

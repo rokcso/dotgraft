@@ -348,10 +348,7 @@ fi
 # ------------------------------------------------------------------------------
 step "场景: dotg 别名与补全"
 shortcuts="$TMP/shortcuts"
-mkdir -p "$shortcuts"
-chezmoi_at "$shortcuts" init --promptMultichoice "$Q_TOOLS=" \
-  --promptChoice "$Q_THEME=Catppuccin Mocha" --promptBool "$Q_GLASS=true" > /dev/null
-chezmoi_at "$shortcuts" apply --exclude=scripts > /dev/null
+setup_cli_home "$shortcuts"
 
 shortcut_out="$(HOME="$shortcuts" zsh -i -c '
   echo "dotg_whence=$(whence -w dotg 2>/dev/null)"
@@ -383,6 +380,23 @@ if [[ "$shortcut_out" == *"has_fn=1"* ]]; then
   ok "_dotgraft 补全函数存在"
 else
   bad "_dotgraft 补全函数不存在"
+fi
+
+# ------------------------------------------------------------------------------
+# diff 默认摘要，完整 diff 需要 --full
+# ------------------------------------------------------------------------------
+step "场景: diff 默认只显示摘要"
+printf '\n# pending change\n' >> "$shortcuts/.local/share/chezmoi-dotgraft/dot_config/zsh/conf.d/10-history.zsh"
+diff_out="$(dotgraft_at "$shortcuts" diff 2>&1 || true)"
+if [[ "$diff_out" == *"待改动"* ]] && [[ "$diff_out" == *"10-history.zsh"* ]]; then
+  ok "diff 显示了文件摘要"
+else
+  bad "diff 没有显示文件摘要"
+fi
+if [[ "$diff_out" != *"@@"* ]]; then
+  ok "diff 默认没有打印完整补丁"
+else
+  bad "diff 默认仍然打印了完整补丁"
 fi
 
 # ------------------------------------------------------------------------------

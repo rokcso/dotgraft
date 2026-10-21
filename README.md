@@ -69,7 +69,7 @@ dotgraft reconfigure
 | 命令 | 作用 |
 |---|---|
 | `dotgraft status` | 当前选配、文件差异、版本 |
-| `dotgraft diff` | 预览改动 |
+| `dotgraft diff [--full]` | 默认显示文件摘要；`--full` 查看完整 diff |
 | `dotgraft apply` | 预览、确认、应用 |
 | `dotgraft update` | 拉取上游、预览、应用，并运行 `dotgraft deps` |
 | `dotgraft deps` | 无条件安装/修复 Homebrew 依赖（不受 `run_onchange` 缓存影响） |
@@ -81,6 +81,8 @@ dotgraft reconfigure
 | `dotgraft uninstall` | 卸载 |
 
 直接运行 `chezmoi` 会使用你自己的默认 source/config，不会看到 Dotgraft；需要底层命令时用 `dotgraft chezmoi ...`。
+
+`dotgraft diff` 默认只列文件摘要，避免首次安装时把整份新文件打印出来；要看逐行补丁用 `dotgraft diff --full`。
 
 如果系统里没有现成的 `dotg` 命令，安装后会自动得到一个短别名：
 
