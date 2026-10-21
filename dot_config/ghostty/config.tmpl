@@ -60,9 +60,10 @@ background-blur = macos-glass-regular
 background-blur = 20
 {{- end }}
 
-# tabs：标签页融进标题栏，最省纵向空间。
-# 其他取值：native（原生标题栏）、transparent（透明标题栏）、hidden（隐藏）
-macos-titlebar-style = tabs
+# native：标准 macOS 标题栏，tab 信息稳定可见。
+# tabs 是自定义标题栏，在某些 macOS/Ghostty 组合下会把 tab 信息藏掉；
+# 想更无缝可改 transparent，想完全隐藏标题栏可改 hidden。
+macos-titlebar-style = native
 
 # 退出后保留窗口状态：位置、尺寸、标签页、分屏布局，下次启动自动恢复。
 window-save-state = always

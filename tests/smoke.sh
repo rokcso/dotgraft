@@ -197,6 +197,7 @@ SEED
 
   # 主题和毛玻璃
   assert_contains "$localhome/.config/ghostty/config" "theme = $theme"
+  assert_contains "$localhome/.config/ghostty/config" "macos-titlebar-style = native"
   if [[ "$glass" == "true" ]]; then
     assert_contains "$localhome/.config/ghostty/config" "background-blur = macos-glass-regular"
   else

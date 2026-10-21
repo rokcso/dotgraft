@@ -107,11 +107,13 @@ background-blur = 20
 ### 标题栏与窗口状态
 
 ```
-macos-titlebar-style = tabs
+macos-titlebar-style = native
 window-save-state = always
 ```
 
-- `tabs`：标签页融进标题栏，最省纵向空间。其他取值 `native`、`transparent`、`hidden`。
+- `native`：标准 macOS 标题栏，tab 信息稳定可见，是默认选择。
+- `tabs`：自定义标题栏，把 tab bar 嵌进标题栏。部分 macOS/Ghostty 组合下可能出现 tab 标签不可见的问题；如果遇到，改回 `native` 或 `transparent`。
+- `transparent`：标准结构但标题栏透明；`hidden`：完全隐藏标题栏。
 - `window-save-state = always`：退出后保留窗口位置、尺寸、标签页、分屏布局。分屏还能回到原来的工作目录，这依赖下面的 shell 集成。
 
 ### 光标
