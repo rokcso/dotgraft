@@ -78,6 +78,26 @@ ZSH
   [[ "$output" != *"dotgraft"* ]]
 }
 
+@test "strip follows zshrc symlink and keeps it" {
+  target="$HOME/.zshrc.real"
+  cat > "$target" <<'ZSH'
+export BEFORE=1
+# >>> dotgraft >>>
+source "$HOME/.config/zsh/init.zsh"
+# <<< dotgraft <<<
+export AFTER=1
+ZSH
+  ln -s ".zshrc.real" "$HOME/.zshrc"
+  run strip_zshrc_block
+  [ "$status" -eq 0 ]
+  [ -L "$HOME/.zshrc" ]
+  [ "$(readlink "$HOME/.zshrc")" = ".zshrc.real" ]
+  run grep -q 'dotgraft' "$target"
+  [ "$status" -ne 0 ]
+  run grep -q 'export AFTER=1' "$target"
+  [ "$status" -eq 0 ]
+}
+
 @test "strip removes multiple blocks" {
   cat > "$HOME/.zshrc" <<'ZSH'
 export BEFORE=1

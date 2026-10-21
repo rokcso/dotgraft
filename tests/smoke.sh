@@ -479,6 +479,36 @@ assert_contains "$cli2/.config/chezmoi/chezmoi.toml" "USER_CHEZMOI_CONFIG"
 assert_contains "$cli2/.local/share/chezmoi/user-file" "USER_DEFAULT_SOURCE"
 
 # ------------------------------------------------------------------------------
+# 卸载：.zshrc 是软链接时保留链接
+# ------------------------------------------------------------------------------
+step "场景: uninstall 保留 .zshrc 软链接"
+cli_link="$TMP/cli-symlink"
+setup_cli_home "$cli_link"
+mv "$cli_link/.zshrc" "$cli_link/.zshrc.real"
+ln -s ".zshrc.real" "$cli_link/.zshrc"
+if dotgraft_script_at "$cli_link" uninstall <<< 'y' > /dev/null 2>&1; then
+  ok "软链接场景 uninstall 正常退出"
+else
+  bad "软链接场景 uninstall 非零退出"
+fi
+if [[ -L "$cli_link/.zshrc" ]]; then
+  ok ".zshrc 仍是软链接"
+else
+  bad ".zshrc 被替换成普通文件"
+fi
+assert_file "$cli_link/.zshrc.real"
+if grep -q '^# >>> dotgraft >>>$' "$cli_link/.zshrc.real" 2> /dev/null; then
+  bad "软链接目标仍残留 dotgraft 区块"
+else
+  ok "软链接目标中的 dotgraft 区块已清理"
+fi
+if find "$cli_link/.config-backup" -name '.zshrc.symlink' -type f | grep -q .; then
+  ok "软链接信息已备份"
+else
+  bad "软链接信息没有备份"
+fi
+
+# ------------------------------------------------------------------------------
 # 卸载安全：.zshrc 区块不完整时不能动任何东西
 # ------------------------------------------------------------------------------
 step "场景: .zshrc 区块不完整时拒绝卸载"

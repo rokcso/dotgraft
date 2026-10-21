@@ -257,11 +257,44 @@ zshrc_block_ok() {
   [[ "$state" -eq 0 ]]
 }
 
+resolve_symlink_target() {
+  local file="$1" target dir base
+  [[ -L "$file" ]] || return 1
+  target="$(readlink "$file")" || return 1
+  if [[ "$target" != /* ]]; then
+    dir="$(cd "$(dirname "$file")" && pwd -P)" || return 1
+    target="$dir/$target"
+  fi
+  dir="$(cd "$(dirname "$target")" && pwd -P)" || return 1
+  base="$(basename "$target")"
+  printf '%s/%s\n' "$dir" "$base"
+}
+
 backup_file() {
-  local src="$1" dest_root="$2" rel
-  [[ -e "$src" ]] || return 0
+  local src="$1" dest_root="$2" rel target
+  [[ -e "$src" || -L "$src" ]] || return 0
   rel="${src#"${HOME%/}"/}"
   mkdir -p "$dest_root/$(dirname "$rel")"
+
+  if [[ -L "$src" ]]; then
+    if ! target="$(readlink "$src")"; then
+      warn "无法读取软链接：$src"
+      return 1
+    fi
+    printf '%s\n' "$target" > "$dest_root/$rel.symlink" || {
+      warn "无法备份软链接信息：$src"
+      return 1
+    }
+    if [[ -f "$src" ]]; then
+      cp -Lp "$src" "$dest_root/$rel" 2> /dev/null ||
+        cp -L "$src" "$dest_root/$rel" || {
+        warn "无法备份软链接内容：$src"
+        return 1
+      }
+    fi
+    return 0
+  fi
+
   if ! cp -p "$src" "$dest_root/$rel" 2> /dev/null; then
     cp "$src" "$dest_root/$rel" || {
       warn "无法备份：$src"
@@ -619,7 +652,18 @@ cmd_doctor() {
 # 不会卸载 Homebrew 包——那会连带删掉你其它项目依赖的东西。
 # ==============================================================================
 strip_zshrc_block() {
-  local file="$HOME/.zshrc"
+  local file="$HOME/.zshrc" target
+  [[ -e "$file" || -L "$file" ]] || return 0
+
+  # 如果 ~/.zshrc 是软链接，编辑它指向的真实文件，并保留链接本身。
+  if [[ -L "$file" ]]; then
+    if ! target="$(resolve_symlink_target "$file")"; then
+      warn "无法解析 ~/.zshrc 软链接目标"
+      return 1
+    fi
+    file="$target"
+  fi
+
   [[ -f "$file" ]] || return 0
   grep -q '^# >>> dotgraft >>>$' "$file" || return 0
 
@@ -648,6 +692,12 @@ cmd_uninstall() {
 
   # 先做完全部只读检查，再动任何文件。
   zshrc_block_ok || die "$HOME/.zshrc 里的 dotgraft 区块不完整（有开始标记但没有结束标记，或反过来）。为避免误删，已停止。请先手动修复该区块。"
+
+  if [[ -L "$HOME/.zshrc" ]]; then
+    local zshrc_target
+    zshrc_target="$(resolve_symlink_target "$HOME/.zshrc")" || die "无法解析 ${HOME}/.zshrc 软链接目标，已停止。"
+    [[ -f "$zshrc_target" && -w "$zshrc_target" ]] || die "${HOME}/.zshrc 指向的目标不可写：$zshrc_target"
+  fi
 
   local managed_list f unexpected=0
   if ! managed_list="$(chezmoi_dg managed --include=files --path-style=absolute 2> /dev/null)"; then

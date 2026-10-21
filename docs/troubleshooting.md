@@ -239,6 +239,8 @@ dotgraft cd
 
    如果文件已经损坏，先从 `~/.config-backup/<时间戳>/files/.zshrc` 恢复，再重试。
 
+   如果 `~/.zshrc` 是软链接，卸载会保留链接，只修改它指向的真实文件；备份中会有 `.zshrc.symlink` 记录原始目标。
+
 ## 卸载后 source 目录还在
 
 这是安全设计。只有当 Dotgraft 的独立 source 是干净克隆（无未提交改动、无未推送提交、remote 像 dotgraft）时，`dotgraft uninstall` 才会执行 `chezmoi purge`。否则会保留 source，避免删掉你加在同一仓库里的私有文件。

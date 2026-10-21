@@ -177,6 +177,7 @@ dotgraft uninstall
 安全边界：
 
 - 如果 `~/.zshrc` 里的 dotgraft 区块不完整，卸载会直接拒绝，避免误删后面的内容。
+- 如果 `~/.zshrc` 是软链接，卸载会编辑它指向的真实文件并保留链接；备份里会额外记录 `.zshrc.symlink`。
 - 如果当前 chezmoi source 里混有 Dotgraft 之外的受管文件，卸载会列出它们并停止；请先手动处理。
 - 只有当 Dotgraft 的独立 source 是干净克隆（无未提交改动、无未推送提交、remote 像 dotgraft）时才会执行 `chezmoi purge`；否则保留 source，并提示你手动确认。
 

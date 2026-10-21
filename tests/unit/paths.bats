@@ -46,6 +46,18 @@ load helpers
   [ -f "$HOME/backup/Library/Application Support/foo/config" ]
 }
 
+@test "backup_file records symlink target" {
+  target="$HOME/real-zshrc"
+  printf 'export KEEP=1\n' > "$target"
+  ln -s "$target" "$HOME/.zshrc"
+  run backup_file "$HOME/.zshrc" "$HOME/backup"
+  [ "$status" -eq 0 ]
+  [ -f "$HOME/backup/.zshrc" ]
+  [ -f "$HOME/backup/.zshrc.symlink" ]
+  [ "$(cat "$HOME/backup/.zshrc.symlink")" = "$target" ]
+  [ -L "$HOME/.zshrc" ]
+}
+
 @test "hash_file returns empty for missing file" {
   run hash_file "$HOME/missing"
   [ "$status" -eq 0 ]

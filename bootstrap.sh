@@ -281,28 +281,48 @@ backup_chezmoi_config() {
   note "已备份已有 chezmoi.toml 到 $BACKUP_DIR/chezmoi.toml.before-dotgraft"
 }
 
+# 备份单个目标；软链接会额外记录 .symlink，内容是它指向的路径。
+# 这样卸载/恢复时不会把用户原来的链接误当成普通文件。
+backup_existing_file() {
+  local src="$1" dest_root="$2" rel target
+  [[ -e "$src" || -L "$src" ]] || return 0
+  rel="${src#"${HOME%/}"/}"
+  mkdir -p "$dest_root/$(dirname "$rel")"
+
+  if [[ -L "$src" ]]; then
+    target="$(readlink "$src")" || fail "无法读取软链接，已停止：$src"
+    printf '%s\n' "$target" > "$dest_root/$rel.symlink" ||
+      fail "无法备份软链接信息，已停止：$src"
+    if [[ -f "$src" ]]; then
+      cp -Lp "$src" "$dest_root/$rel" 2> /dev/null ||
+        cp -L "$src" "$dest_root/$rel" ||
+        fail "无法备份软链接内容，已停止：$src"
+    fi
+    return 0
+  fi
+
+  cp -p "$src" "$dest_root/$rel" 2> /dev/null ||
+    fail "无法备份已有文件，已停止：$src"
+}
+
 # 备份所有“安装前已经存在”的目标文件。
 # chezmoi 对未受管目标不会提示，会直接覆盖；没有这一步，
 # 用户原来的 Ghostty / Starship / zsh 配置会被静默替换。
 backup_existing_targets() {
-  local f rel count=0 managed_files
+  local f count=0 managed_files
   mkdir -p "$BACKUP_DIR/pre-existing"
   if ! managed_files="$(chezmoi_dg managed --include=files --path-style=absolute 2> /dev/null)"; then
     fail "无法读取 chezmoi 受管文件列表，已停止。请先运行 chezmoi doctor。"
   fi
   while IFS= read -r f; do
     [[ -n "$f" ]] || continue
-    [[ -e "$f" ]] || continue
-    rel="${f#"${HOME%/}"/}"
-    mkdir -p "$BACKUP_DIR/pre-existing/$(dirname "$rel")"
-    cp -p "$f" "$BACKUP_DIR/pre-existing/$rel" 2> /dev/null ||
-      fail "无法备份已有文件，已停止：$f"
+    [[ -e "$f" || -L "$f" ]] || continue
+    backup_existing_file "$f" "$BACKUP_DIR/pre-existing"
     count=$((count + 1))
   done <<< "$managed_files"
 
-  if [[ -f "$HOME/.zshrc" && ! -f "$BACKUP_DIR/pre-existing/.zshrc" ]]; then
-    cp -p "$HOME/.zshrc" "$BACKUP_DIR/pre-existing/.zshrc" 2> /dev/null ||
-      fail "无法备份 ~/.zshrc，已停止"
+  if [[ (-f "$HOME/.zshrc" || -L "$HOME/.zshrc") && ! -f "$BACKUP_DIR/pre-existing/.zshrc" ]]; then
+    backup_existing_file "$HOME/.zshrc" "$BACKUP_DIR/pre-existing"
     count=$((count + 1))
   fi
 
