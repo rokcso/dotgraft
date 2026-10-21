@@ -1,0 +1,54 @@
+#!/bin/sh
+# ==============================================================================
+# 依赖安装 —— chezmoi run_onchange 脚本
+# ==============================================================================
+# 在 chezmoi apply 时执行，但只在内容变化时重跑。
+# 内容里嵌了两个哈希，所以：
+#   - 第一次安装会跑
+#   - 改了选配（dotgraft reconfigure）会重跑
+#   - 改了 Brewfile 会重跑
+#   - 都没变时静默跳过，不会每次 apply 都拖时间
+#
+# 脚本必须幂等：brew 对已安装的包会直接跳过。
+# ==============================================================================
+set -eu
+
+# 选配哈希: {{ .tools | toJson | sha256sum }}
+# 清单哈希: {{ include "Brewfile" | sha256sum }}
+
+if ! command -v brew >/dev/null 2>&1; then
+  echo "  ! 找不到 Homebrew，跳过依赖安装" >&2
+  echo "    装好 Homebrew 后运行 dotgraft update 重试" >&2
+  exit 0
+fi
+
+echo "==> 安装基础依赖"
+# 单个包失败（比如网络问题）不应该中断整个 apply，
+# 下面会汇总哪些没装上，由用户决定是否重试。
+brew bundle --file="{{ .chezmoi.sourceDir }}/Brewfile" || true
+
+# ------------------------------------------------------------------------------
+# 字体：只在不存在时安装
+# ------------------------------------------------------------------------------
+# 字体 cask 会尝试"采纳"已存在的同名文件，遇到二进制不同就报错退出：
+#   "It seems the existing Font is different from the one being installed."
+# 从 GitHub 手动装过 Maple Mono 的人几乎一定会撞上。
+# 所以这里先探测，已经有了就完全跳过。
+if ls "$HOME/Library/Fonts" /Library/Fonts 2>/dev/null | grep -qi "maple"; then
+  echo "==> 已存在 Maple Mono 字体，跳过"
+else
+  echo "==> 安装字体 font-maple-mono-nf-cn"
+  brew install --cask font-maple-mono-nf-cn || \
+    echo "  ! 字体安装失败，请手动安装：https://github.com/subframe7536/maple-font" >&2
+fi
+
+# ------------------------------------------------------------------------------
+# 选配的 CLI 工具
+# ------------------------------------------------------------------------------
+{{ if .tools -}}
+echo "==> 安装选配工具: {{ .tools | join " " }}"
+brew install {{ .tools | join " " }} || \
+  echo "  ! 有工具没装上，可以稍后运行 dotgraft update 重试" >&2
+{{- else -}}
+echo "==> 没有选择任何 CLI 工具，跳过"
+{{- end }}

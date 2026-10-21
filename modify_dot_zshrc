@@ -1,0 +1,24 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /*
+  这个文件是 chezmoi 的 modify 脚本，目标文件是 ~/.zshrc。
+  规则：从 .chezmoi.stdin 读入当前内容，把结果写到 stdout。
+  chezmoi 只在输出与现状不同时才真正落盘，所以天然幂等。
+
+  做三件事：
+    1. 剥掉已有的 dotgraft 区块（保证升级时是替换而不是叠加）
+    2. 清掉尾部多余空行
+    3. 把当前版本的区块接在末尾
+
+  区块之外的任何内容都不碰。
+*/ -}}
+{{- $stdin := .chezmoi.stdin -}}
+{{- $stripped := regexReplaceAll "(?s)# >>> dotgraft >>>.*?# <<< dotgraft <<<\n?" $stdin "" -}}
+{{- $stripped = regexReplaceAll "\n+$" $stripped "" -}}
+{{- $block := "# >>> dotgraft >>>\n# 由 dotgraft 管理，请勿手动编辑本区块\n# 机器本地配置请写到 ~/.config/zsh/conf.d/90-local.zsh\nsource \"$HOME/.config/zsh/init.zsh\"\n# <<< dotgraft <<<" -}}
+{{- if $stripped -}}
+{{ $stripped }}
+
+{{ $block }}
+{{- else -}}
+{{ $block }}
+{{- end -}}

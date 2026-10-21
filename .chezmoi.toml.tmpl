@@ -1,0 +1,47 @@
+{{- /*
+  chezmoi 的「每台机器问答」。只在 chezmoi init 时执行。
+  答案写进 ~/.config/chezmoi/chezmoi.toml，不写进本仓库，
+  所以你的个人选择不会被提交，也不会传到别人手上。
+
+  想改选择：dotgraft reconfigure（或 chezmoi init 后再 chezmoi apply）
+
+  prompt 函数签名统一是 prompt <choices> [default]：
+    promptBool        prompt [default]
+    promptChoice      prompt choices [default]
+    promptMultichoice prompt choices [default]
+  choices 必须是 (list ...)，default 必须只有一个值。
+*/ -}}
+
+{{-   $tools := promptMultichoice
+      "要启用哪些 CLI 工具？（空格勾选，回车确认）"
+      (list "fzf" "zoxide" "eza" "bat" "yazi")
+      (list "fzf" "zoxide" "eza" "bat" "yazi") -}}
+
+{{- /* 归一化选择结果。
+       一个都不选时，chezmoi 可能给出 [""] 而不是 []，
+       而 [""] 在模板里是真，会导致下游 `{{ if .tools }}` 误判。
+       这里把空串滤掉。 */ -}}
+{{- $clean := list -}}
+{{- range $tools -}}
+{{-   if ne . "" -}}
+{{-     $clean = append $clean . -}}
+{{-   end -}}
+{{- end -}}
+
+{{- /* 主题名必须是 Ghostty 内置主题的**准确**名称，否则渲染出的配置会校验失败。
+       可用 ghostty +list-themes 查看，tests/smoke.sh 会对这里每一项做校验。
+       两个容易写错的：是 "GitHub Light Default" 不是 "GitHub Light"；
+       是 "TokyoNight" 不是 "Tokyo Night"。 */ -}}
+{{- $theme := promptChoice
+      "Ghostty 主题"
+      (list "Catppuccin Mocha" "Catppuccin Latte" "Catppuccin Frappe" "GitHub Dark" "GitHub Light Default" "TokyoNight")
+      "Catppuccin Mocha" -}}
+
+{{- $glass := promptBool
+      "启用 macOS 原生毛玻璃效果？（需要 macOS 26 及以上）"
+      true -}}
+
+[data]
+  tools = {{ $clean | toJson }}
+  theme = {{ $theme | quote }}
+  glass = {{ $glass }}

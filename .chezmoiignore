@@ -1,0 +1,14 @@
+# chezmoi 会把源目录里的一切映射到 $HOME。
+# 下面这些是仓库自身的文件，不是 dotfiles，必须排除。
+#
+# 新增顶层目录时记得同步这里，tests/smoke.sh 会验证它们没有进入 $HOME。
+README.md
+LICENSE
+Brewfile
+bootstrap.sh
+docs/
+tests/
+.github/
+
+# 参考资料（如果以后在本地 clone 同类项目，放这里就不会被部署）
+refs/

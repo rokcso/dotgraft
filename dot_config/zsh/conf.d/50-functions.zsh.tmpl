@@ -1,0 +1,28 @@
+{{- if has "yazi" .tools }}
+# ------------------------------------------------------------------------------
+# y —— 打开 yazi，退出后停留在浏览到的目录
+# ------------------------------------------------------------------------------
+# 普通 yazi 退出后 shell 还停在原地，这个包装函数把它变成"顺便 cd"。
+#
+# 原理：yazi 支持 --cwd-file，退出时把最后的目录写进指定文件，我们再读回来。
+#
+# 两处细节是刻意的：
+#   command cat    绕开 70-aliases.zsh 里的 cat -> bat 别名。
+#                  bat 带分页和格式化，读这个临时文件会出乱子。
+#   builtin cd     绕开任何人可能定义的 cd 别名/函数，确保真的切换目录。
+if (( $+commands[yazi] )); then
+  function y() {
+    local tmp cwd
+    tmp="$(mktemp -t yazi-cwd.XXXXXX)"
+
+    yazi "$@" --cwd-file="$tmp"
+
+    if cwd="$(command cat -- "$tmp" 2>/dev/null)" &&
+       [[ -n "$cwd" ]] && [[ "$cwd" != "$PWD" ]]; then
+      builtin cd -- "$cwd"
+    fi
+
+    rm -f -- "$tmp"
+  }
+fi
+{{- end }}

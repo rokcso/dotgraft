@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # 静态检查：shell 和 zsh 的语法与风格
+  # ============================================================================
+  lint:
+    name: Lint shell and zsh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends zsh shellcheck
+
+      - name: shellcheck
+        run: |
+          shellcheck \
+            bootstrap.sh \
+            dot_local/bin/executable_dotgraft \
+            tests/smoke.sh
+
+      # 格式标准和本地保持一致：2 空格缩进、case 内缩进、简化写法。
+      # 用 go install 取 shfmt，是因为 Ubuntu 源里没有这个包。
+      # 如果上游改变了默认格式规则导致这里变红，重跑
+      #   shfmt -w -i 2 -ci -sr bootstrap.sh dot_local/bin/executable_dotgraft tests/smoke.sh
+      # 再提交即可。
+      - name: shfmt
+        run: |
+          go install mvdan.cc/sh/v3/cmd/shfmt@latest
+          "$(go env GOPATH)/bin/shfmt" -d -i 2 -ci -sr \
+            bootstrap.sh \
+            dot_local/bin/executable_dotgraft \
+            tests/smoke.sh
+
+      - name: zsh syntax
+        run: |
+          zsh -n dot_config/zsh/init.zsh
+          for f in dot_config/zsh/conf.d/*.zsh; do
+            zsh -n "$f"
+          done
+          echo "zsh 语法检查通过"
+        # 这里故意逐个检查而不是用 glob 一次传入，
+        # 这样报错时能直接看到是哪个文件。
+
+  # ============================================================================
+  # 渲染检查：真正跑一遍安装流程，验证模板、选配和 Ghostty 配置
+  # ============================================================================
+  # 这一项才是关键。它跑的是用户安装时会走的同一条路径：
+  #   chezmoi init（回答选配问题）→ apply → 断言落盘结果
+  # 模板写错、选配项写错、忽略清单漏了目录，都会在这里暴露。
+  render:
+    name: Render templates and validate
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install chezmoi
+        run: brew install chezmoi
+
+      # cask 装的是 .app，不保证在 PATH 里建符号链接，
+      # tests/smoke.sh 会自己去 /Applications 找二进制。
+      # 装不上也不阻塞：这时候会跳过 Ghostty 相关的校验，其余断言照常跑。
+      - name: Install Ghostty
+        continue-on-error: true
+        run: brew install --cask ghostty
+
+      - name: Smoke test
+        run: bash tests/smoke.sh

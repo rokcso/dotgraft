@@ -1,0 +1,276 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# dotgraft —— 日常操作命令
+# ==============================================================================
+# 由 chezmoi 安装到 ~/.local/bin/dotgraft，提供安装之后的所有操作。
+# 首次安装走 bootstrap.sh，不是这个脚本。
+# ==============================================================================
+
+set -eu
+
+step() { printf '\n==> %s\n' "$*"; }
+note() { printf '    %s\n' "$*"; }
+warn() { printf '    ! %s\n' "$*" >&2; }
+die() {
+  printf '\n错误: %s\n' "$*" >&2
+  exit 1
+}
+
+confirm() {
+  local reply
+  printf '    %s [y/N] ' "$1"
+  read -r reply
+  [[ "$reply" == [yY] ]]
+}
+
+require_chezmoi() {
+  command -v chezmoi > /dev/null 2>&1 || die "找不到 chezmoi。重新安装请跑 bootstrap.sh"
+}
+
+# ==============================================================================
+# status
+# ==============================================================================
+cmd_status() {
+  require_chezmoi
+  step "配置状态"
+  note "源目录: $(chezmoi source-path)"
+  note "chezmoi: $(chezmoi --version | head -1)"
+
+  printf '\n'
+  note "选配结果（存在 ~/.config/chezmoi/chezmoi.toml，不进仓库）:"
+  note "  工具:   $(chezmoi execute-template '{{ if .tools }}{{ .tools | join " " }}{{ else }}（无）{{ end }}')"
+  note "  主题:   $(chezmoi execute-template '{{ .theme }}')"
+  note "  毛玻璃: $(chezmoi execute-template '{{ if .glass }}原生（macOS 26+）{{ else }}数字模糊{{ end }}')"
+
+  printf '\n'
+  note "与仓库的差异:"
+  local st
+  st="$(chezmoi status || true)"
+  if [[ -z "$st" ]]; then
+    note "  无差异，已同步"
+  else
+    printf '%s\n' "$st" | sed 's/^/      /'
+  fi
+}
+
+# ==============================================================================
+# diff / apply
+# ==============================================================================
+cmd_diff() {
+  require_chezmoi
+  local out
+  out="$(chezmoi diff --no-pager 2>&1 || true)"
+  if [[ -z "$out" ]]; then
+    note "没有待应用的改动。"
+  else
+    printf '%s\n' "$out"
+  fi
+}
+
+cmd_apply() {
+  require_chezmoi
+  cmd_diff
+  printf '\n'
+  confirm "应用这些改动？" || {
+    printf '    已取消。\n'
+    exit 0
+  }
+  chezmoi apply
+  note "完成。开新终端窗口或 exec zsh 让 shell 配置生效。"
+}
+
+# ==============================================================================
+# update
+# ==============================================================================
+cmd_update() {
+  require_chezmoi
+  step "更新到上游最新"
+  # chezmoi update = git pull --rebase + apply
+  # apply 过程中如果 Brewfile 或选配变了，run_onchange 脚本会重跑依赖安装
+  chezmoi update
+  note "完成。"
+}
+
+# ==============================================================================
+# reconfigure
+# ==============================================================================
+cmd_reconfigure() {
+  require_chezmoi
+  step "重新选择组件"
+  note "（会重新问那三个问题，答案只覆盖本机配置）"
+  printf '\n'
+  chezmoi init
+  printf '\n'
+  cmd_apply
+}
+
+# ==============================================================================
+# edit / cd / doctor
+# ==============================================================================
+cmd_edit() {
+  require_chezmoi
+  if [[ $# -eq 0 ]]; then
+    note "用法: dotgraft edit <目标文件>，例如："
+    note "  dotgraft edit ~/.config/ghostty/config"
+    exit 1
+  fi
+  chezmoi edit "$@"
+}
+
+cmd_cd() {
+  require_chezmoi
+  chezmoi cd
+}
+
+cmd_doctor() {
+  require_chezmoi
+  chezmoi doctor
+}
+
+# ==============================================================================
+# uninstall
+# ==============================================================================
+# 注意：chezmoi purge 只删自己的源码/配置/状态，不删目标文件。
+# 所以这里必须自己清理 ~/.zshrc 区块和 ~/.config 下的文件。
+# 不会卸载 Homebrew 包——那会连带删掉你其它项目依赖的东西。
+# ==============================================================================
+strip_zshrc_block() {
+  local file="$HOME/.zshrc"
+  [[ -f "$file" ]] || return 0
+  grep -q '^# >>> dotgraft >>>$' "$file" || return 0
+
+  local tmp
+  tmp="$(mktemp)"
+  # 跳过区块，并去掉文件末尾多余空行
+  awk '
+    /^# >>> dotgraft >>>$/ { skip = 1; next }
+    /^# <<< dotgraft <<<$/ { skip = 0; next }
+    !skip { lines[NR] = $0 }
+    END {
+      last = NR
+      while (last > 0 && lines[last] ~ /^[[:space:]]*$/) last--
+      for (i = 1; i <= last; i++) print lines[i]
+    }
+  ' "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+
+cmd_uninstall() {
+  require_chezmoi
+  step "卸载 Dotgraft"
+
+  cat << 'WARN'
+    将会：
+      - 删除 ~/.config/zsh/、~/.config/ghostty/config、~/.config/starship.toml
+      - 删除 ~/.local/bin/dotgraft
+      - 从 ~/.zshrc 移除 dotgraft 区块（其余内容保留）
+      - 清理 chezmoi 自己的记录
+
+    不会：
+      - 卸载任何 Homebrew 包（想删自己跑 brew uninstall）
+      - 改动 ~/.zprofile、~/.zshenv
+WARN
+
+  printf '\n'
+  confirm "确认卸载？" || {
+    printf '    已取消。\n'
+    exit 0
+  }
+
+  local stamp backup
+  stamp="$(date +%Y%m%d_%H%M%S)"
+  backup="$HOME/.config-backup/$stamp"
+  mkdir -p "$backup"
+
+  # 1. 备份用户自己的机器专属配置
+  local local_rc="$HOME/.config/zsh/conf.d/90-local.zsh"
+  if [[ -s "$local_rc" ]]; then
+    cp "$local_rc" "$backup/90-local.zsh"
+    note "已备份 90-local.zsh"
+  fi
+
+  # 2. 备份 ~/.zshrc
+  [[ -f "$HOME/.zshrc" ]] && cp "$HOME/.zshrc" "$backup/zshrc"
+
+  # 3. 删除受管文件（.zshrc 单独处理，不能整份删）
+  local removed=0 f
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    [[ "$f" == "$HOME/.zshrc" ]] && continue
+    [[ -e "$f" ]] || continue
+    rm -f "$f" && removed=$((removed + 1))
+  done < <(chezmoi managed --include=files --path-style=absolute 2> /dev/null || true)
+  note "已删除 $removed 个文件"
+
+  # 4. 移除 ~/.zshrc 里的区块
+  strip_zshrc_block
+  note "已清理 ~/.zshrc 中的 dotgraft 区块"
+
+  # 5. 清理空目录（用户自己的文件在里面时 rmdir 会失败，正合适）
+  rmdir "$HOME/.config/zsh/conf.d" 2> /dev/null || true
+  rmdir "$HOME/.config/zsh" 2> /dev/null || true
+  rmdir "$HOME/.config/ghostty" 2> /dev/null || true
+  rmdir "$HOME/.local/bin" 2> /dev/null || true
+
+  # 6. 清理 chezmoi 自身
+  chezmoi purge --force
+  note "已清理 chezmoi 源码、配置和状态"
+
+  printf '\n'
+  note "备份目录: $backup"
+  note "开新终端窗口，你的 shell 会回到安装前的状态。"
+}
+
+# ==============================================================================
+# help
+# ==============================================================================
+cmd_help() {
+  cat << 'HELP'
+dotgraft —— 终端配置管理
+
+用法: dotgraft <命令>
+
+命令:
+  status        当前选配、文件差异、版本
+  diff          预览将要发生的改动
+  apply         预览并应用改动
+  update        拉取上游更新并应用（含依赖）
+  reconfigure   重新选择组件（工具 / 主题 / 毛玻璃）
+  edit <文件>   编辑某个受管文件的仓库副本
+  cd            进入 chezmoi 源目录
+  doctor        检查环境
+  uninstall     卸载（保留 Homebrew 包）
+
+首次安装不走这里，用：
+  bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/main/bootstrap.sh)
+HELP
+}
+
+# ==============================================================================
+# 分发
+# ==============================================================================
+main() {
+  local cmd="${1:-help}"
+  [[ $# -gt 0 ]] && shift
+
+  case "$cmd" in
+    status) cmd_status ;;
+    diff) cmd_diff ;;
+    apply) cmd_apply ;;
+    update) cmd_update ;;
+    reconfigure) cmd_reconfigure ;;
+    edit) cmd_edit "$@" ;;
+    cd) cmd_cd ;;
+    doctor) cmd_doctor ;;
+    uninstall) cmd_uninstall ;;
+    help | -h | --help) cmd_help ;;
+    *)
+      warn "未知命令: $cmd"
+      printf '\n'
+      cmd_help
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
