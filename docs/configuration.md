@@ -104,6 +104,14 @@ dotgraft reconfigure      # chezmoi init → 预览 → apply → 修复依赖
 
 `chezmoi init` 会重新渲染 `.chezmoi.toml.tmpl`，覆盖 `~/.config/dotgraft/chezmoi.toml`。
 
+`bootstrap.sh` 和 `dotgraft reconfigure` 会先用编号菜单询问主题和毛玻璃，再把答案通过 `--promptChoice` / `--promptBool` 传给 `chezmoi init`，所以不需要手打完整主题名。自动化时可以用：
+
+```bash
+DOTGRAFT_THEME="GitHub Dark" DOTGRAFT_GLASS=false dotgraft reconfigure
+```
+
+主题列表在三处保持一致：`.chezmoi.toml.tmpl`、`bootstrap.sh`、`dot_local/bin/executable_dotgraft`。新增主题时三处都要改。
+
 ## 机器专属配置
 
 `~/.config/zsh/conf.d/90-local.zsh` 用 `create_` 管理：首次 apply 时创建，之后 `dotgraft apply` 永不覆盖。适合放：

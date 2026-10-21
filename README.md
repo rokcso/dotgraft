@@ -48,13 +48,23 @@ chezmoi \
 
 ## 选配
 
-安装时问三个问题，答案存在 `~/.config/dotgraft/chezmoi.toml`，**不进仓库**：
+安装时会问三项，答案存在 `~/.config/dotgraft/chezmoi.toml`，**不进仓库**：
+
+- **CLI 工具**：chezmoi 的勾选列表，空格选择、回车确认
+- **Ghostty 主题**：编号菜单，输入 `1`–`6` 或回车用默认
+- **毛玻璃**：编号菜单，输入 `1`（原生）或 `2`（数字模糊）
 
 | 问题 | 作用 |
 |---|---|
 | 要启用哪些 CLI 工具（多选） | fzf / zoxide / eza / bat / yazi。没勾的不安装，对应配置片段也会被删除；已经装过的 Homebrew 包不会卸载 |
 | Ghostty 主题 | 写进 Ghostty 配置 |
 | 是否用原生毛玻璃 | 默认值按 macOS 版本决定：macOS 26+ 默认开启（`macos-glass-regular`），更旧的系统默认数字模糊 |
+
+非交互环境可用 `DOTGRAFT_THEME` 和 `DOTGRAFT_GLASS` 跳过菜单：
+
+```bash
+DOTGRAFT_THEME="GitHub Dark" DOTGRAFT_GLASS=false bash bootstrap.sh
+```
 
 随时可以改：
 

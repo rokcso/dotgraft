@@ -13,6 +13,16 @@ APPLY_CANCELED=0
 DOTGRAFT_SOURCE="${DOTGRAFT_SOURCE:-${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi-dotgraft}"
 DOTGRAFT_CONFIG="${DOTGRAFT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/chezmoi.toml}"
 
+# 与 .chezmoi.toml.tmpl 的 promptChoice 列表保持一致。
+DOTGRAFT_THEMES=(
+  "Catppuccin Mocha"
+  "Catppuccin Latte"
+  "Catppuccin Frappe"
+  "GitHub Dark"
+  "GitHub Light Default"
+  "TokyoNight"
+)
+
 step() { printf '\n==> %s\n' "$*"; }
 note() { printf '    %s\n' "$*"; }
 warn() { printf '    ! %s\n' "$*" >&2; }
@@ -63,6 +73,131 @@ require_dotgraft_source() {
 hash_file() {
   [[ -f "$1" ]] || return 0
   shasum -a 256 "$1" | awk '{print $1}'
+}
+
+default_glass() {
+  local major
+  major="$(sw_vers -productVersion 2> /dev/null | cut -d. -f1)"
+  [[ "$major" =~ ^[0-9]+$ ]] || major=0
+  if ((major >= 26)); then
+    printf 'true\n'
+  else
+    printf 'false\n'
+  fi
+}
+
+choose_theme() {
+  local default="${1:-Catppuccin Mocha}" i choice marker
+  printf '\n选择 Ghostty 主题：\n' >&2
+  for i in "${!DOTGRAFT_THEMES[@]}"; do
+    marker=""
+    if [[ "${DOTGRAFT_THEMES[$i]}" == "$default" ]]; then
+      marker="（默认）"
+    fi
+    printf '  %d) %s%s\n' "$((i + 1))" "${DOTGRAFT_THEMES[$i]}" "$marker" >&2
+  done
+
+  while true; do
+    printf '输入编号 [1-%d]（回车使用默认）: ' "${#DOTGRAFT_THEMES[@]}" >&2
+    if ! read -r choice; then
+      printf '%s\n' "$default"
+      return 0
+    fi
+    if [[ -z "$choice" ]]; then
+      printf '%s\n' "$default"
+      return 0
+    fi
+    if [[ "$choice" =~ ^[0-9]+$ ]] && ((10#$choice >= 1 && 10#$choice <= ${#DOTGRAFT_THEMES[@]})); then
+      printf '%s\n' "${DOTGRAFT_THEMES[10#$choice - 1]}"
+      return 0
+    fi
+    printf '  无效编号，请重试。\n' >&2
+  done
+}
+
+choose_glass() {
+  local default="${1:-false}" choice marker
+  printf '\n毛玻璃效果：\n' >&2
+  marker=""
+  if [[ "$default" == "true" ]]; then
+    marker="（默认）"
+  fi
+  printf '  1) 原生毛玻璃（macOS 26+）%s\n' "$marker" >&2
+  marker=""
+  if [[ "$default" == "false" ]]; then
+    marker="（默认）"
+  fi
+  printf '  2) 数字模糊%s\n' "$marker" >&2
+
+  while true; do
+    printf '输入编号 [1-2]（回车使用默认）: ' >&2
+    if ! read -r choice; then
+      printf '%s\n' "$default"
+      return 0
+    fi
+    case "$choice" in
+      1)
+        printf 'true\n'
+        return 0
+        ;;
+      2)
+        printf 'false\n'
+        return 0
+        ;;
+      "")
+        printf '%s\n' "$default"
+        return 0
+        ;;
+      *) printf '  无效编号，请重试。\n' >&2 ;;
+    esac
+  done
+}
+
+current_theme() {
+  local value
+  value="$(chezmoi_dg execute-template '{{ .theme }}' 2> /dev/null || true)"
+  printf '%s\n' "${value:-Catppuccin Mocha}"
+}
+
+current_glass() {
+  local value
+  value="$(chezmoi_dg execute-template '{{ if .glass }}true{{ else }}false{{ end }}' 2> /dev/null || true)"
+  case "$value" in
+    true | false) printf '%s\n' "$value" ;;
+    *) default_glass ;;
+  esac
+}
+
+theme_is_valid() {
+  local theme="$1" candidate
+  for candidate in "${DOTGRAFT_THEMES[@]}"; do
+    if [[ "$candidate" == "$theme" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+init_with_choices() {
+  local theme glass
+  theme="${DOTGRAFT_THEME:-}"
+  if [[ -z "$theme" ]]; then
+    theme="$(choose_theme "$(current_theme)")"
+  fi
+  theme_is_valid "$theme" || die "无效主题：$theme（可选：${DOTGRAFT_THEMES[*]}）"
+
+  glass="${DOTGRAFT_GLASS:-}"
+  if [[ -z "$glass" ]]; then
+    glass="$(choose_glass "$(current_glass)")"
+  fi
+  case "$glass" in
+    true | false) ;;
+    *) die "无效 DOTGRAFT_GLASS：$glass（应为 true 或 false）" ;;
+  esac
+
+  chezmoi_dg init \
+    --promptChoice "Ghostty 主题=$theme" \
+    --promptBool "启用 macOS 原生毛玻璃效果？（需要 macOS 26 及以上）=$glass"
 }
 
 # uninstall 只允许删除这个白名单内的目标路径。
@@ -271,7 +406,7 @@ cmd_update() {
 
   if [[ "$before" != "$after" ]]; then
     step "选配模板有更新，重新询问配置"
-    chezmoi_dg init
+    init_with_choices
   fi
 
   APPLY_CANCELED=0
@@ -290,9 +425,9 @@ cmd_update() {
 cmd_reconfigure() {
   require_dotgraft_source
   step "重新选择组件"
-  note "（会重新问那几个问题，答案只覆盖本机配置）"
+  note "（主题/毛玻璃用编号菜单；CLI 工具由 chezmoi 勾选）"
   printf '\n'
-  chezmoi_dg init
+  init_with_choices
   printf '\n'
 
   APPLY_CANCELED=0

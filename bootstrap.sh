@@ -24,6 +24,14 @@ BACKUP_DIR="$HOME/.config-backup/$STAMP"
 DOTGRAFT_SOURCE="${DOTGRAFT_SOURCE:-${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi-dotgraft}"
 DOTGRAFT_CONFIG="${DOTGRAFT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/chezmoi.toml}"
 LEGACY_SOURCE="${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi"
+DOTGRAFT_THEMES=(
+  "Catppuccin Mocha"
+  "Catppuccin Latte"
+  "Catppuccin Frappe"
+  "GitHub Dark"
+  "GitHub Light Default"
+  "TokyoNight"
+)
 GHOSTTY_OVERRIDE="$HOME/Library/Application Support/com.mitchellh.ghostty/config"
 GHOSTTY_OVERRIDE_MOVED=0
 GHOSTTY_OVERRIDE_SAVED=''
@@ -50,6 +58,94 @@ chezmoi_dg() {
     --config "$DOTGRAFT_CONFIG" \
     --destination "$HOME" \
     "$@"
+}
+
+default_glass() {
+  local major
+  major="$(sw_vers -productVersion 2> /dev/null | cut -d. -f1)"
+  [[ "$major" =~ ^[0-9]+$ ]] || major=0
+  if ((major >= 26)); then
+    printf 'true\n'
+  else
+    printf 'false\n'
+  fi
+}
+
+choose_theme() {
+  local default="${1:-Catppuccin Mocha}" i choice marker
+  printf '\n选择 Ghostty 主题：\n' >&2
+  for i in "${!DOTGRAFT_THEMES[@]}"; do
+    marker=""
+    if [[ "${DOTGRAFT_THEMES[$i]}" == "$default" ]]; then
+      marker="（默认）"
+    fi
+    printf '  %d) %s%s\n' "$((i + 1))" "${DOTGRAFT_THEMES[$i]}" "$marker" >&2
+  done
+
+  while true; do
+    printf '输入编号 [1-%d]（回车使用默认）: ' "${#DOTGRAFT_THEMES[@]}" >&2
+    if ! read -r choice; then
+      printf '%s\n' "$default"
+      return 0
+    fi
+    if [[ -z "$choice" ]]; then
+      printf '%s\n' "$default"
+      return 0
+    fi
+    if [[ "$choice" =~ ^[0-9]+$ ]] && ((10#$choice >= 1 && 10#$choice <= ${#DOTGRAFT_THEMES[@]})); then
+      printf '%s\n' "${DOTGRAFT_THEMES[10#$choice - 1]}"
+      return 0
+    fi
+    printf '  无效编号，请重试。\n' >&2
+  done
+}
+
+choose_glass() {
+  local default="${1:-false}" choice marker
+  printf '\n毛玻璃效果：\n' >&2
+  marker=""
+  if [[ "$default" == "true" ]]; then
+    marker="（默认）"
+  fi
+  printf '  1) 原生毛玻璃（macOS 26+）%s\n' "$marker" >&2
+  marker=""
+  if [[ "$default" == "false" ]]; then
+    marker="（默认）"
+  fi
+  printf '  2) 数字模糊%s\n' "$marker" >&2
+
+  while true; do
+    printf '输入编号 [1-2]（回车使用默认）: ' >&2
+    if ! read -r choice; then
+      printf '%s\n' "$default"
+      return 0
+    fi
+    case "$choice" in
+      1)
+        printf 'true\n'
+        return 0
+        ;;
+      2)
+        printf 'false\n'
+        return 0
+        ;;
+      "")
+        printf '%s\n' "$default"
+        return 0
+        ;;
+      *) printf '  无效编号，请重试。\n' >&2 ;;
+    esac
+  done
+}
+
+theme_is_valid() {
+  local theme="$1" candidate
+  for candidate in "${DOTGRAFT_THEMES[@]}"; do
+    if [[ "$candidate" == "$theme" ]]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 # 安装中途失败/被 Ctrl-C 时，把已经移开的 Ghostty 覆盖文件放回去。
@@ -223,11 +319,28 @@ check_legacy_source
 backup_chezmoi_config
 
 step "选择要启用的组件"
-note "（下面几个问题由 chezmoi 提问，答案只保存在本机）"
+note "（主题/毛玻璃用编号菜单；CLI 工具由 chezmoi 勾选）"
 printf '\n'
 
+theme_choice="${DOTGRAFT_THEME:-}"
+if [[ -z "$theme_choice" ]]; then
+  theme_choice="$(choose_theme "Catppuccin Mocha")"
+fi
+theme_is_valid "$theme_choice" || fail "无效主题：$theme_choice（可选：${DOTGRAFT_THEMES[*]}）"
+
+glass_choice="${DOTGRAFT_GLASS:-}"
+if [[ -z "$glass_choice" ]]; then
+  glass_choice="$(choose_glass "$(default_glass)")"
+fi
+case "$glass_choice" in
+  true | false) ;;
+  *) fail "无效 DOTGRAFT_GLASS：$glass_choice（应为 true 或 false）" ;;
+esac
+
 mkdir -p "$(dirname "$DOTGRAFT_SOURCE")" "$(dirname "$DOTGRAFT_CONFIG")"
-chezmoi_dg init "$REPO_URL"
+chezmoi_dg init "$REPO_URL" \
+  --promptChoice "Ghostty 主题=$theme_choice" \
+  --promptBool "启用 macOS 原生毛玻璃效果？（需要 macOS 26 及以上）=$glass_choice"
 verify_dotgraft_source
 
 # ==============================================================================
