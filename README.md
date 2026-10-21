@@ -12,7 +12,7 @@ Created by rokcso · 源码与反馈：<https://github.com/rokcso/dotgraft>
 
 Dotgraft 换了个前提——**配置是声明式的，机器是收敛出来的**：
 
-- **幂等**：`chezmoi apply` 跑一百次结果一样
+- **幂等**：`dotgraft apply`（底层 `chezmoi apply`）跑一百次结果一样
 - **可预览**：`dotgraft diff` 先看再改
 - **可更新**：`dotgraft update` 拉取上游、预览、应用，并修复依赖
 - **可共处**：只维护 `~/.zshrc` 里的一小段标记区块，其余字节不动
@@ -27,19 +27,28 @@ bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/main/bootstr
 
 脚本会检查环境、安装 chezmoi、问你几个选配问题、展示完整 diff，确认后才落盘。
 
-已经在用 chezmoi：
+Dotgraft 使用**独立 source/config**，不会占用默认的 `~/.local/share/chezmoi`，也不会改你的 `~/.config/chezmoi`：
 
-```bash
-chezmoi init --apply rokcso/dotgraft
+```
+source:  ${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi-dotgraft
+config:  ${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/chezmoi.toml
 ```
 
-> 这条路径**只拉配置**，不会装 chezmoi、不会预览 diff，也不会处理 macOS 上的 Ghostty 覆盖文件。依赖会在 `apply` 过程中由 `run_onchange` 脚本补装；如果补装失败，再运行 `dotgraft deps`。
->
-> **重要**：如果默认 chezmoi 源目录 `~/.local/share/chezmoi` 已经有内容，`chezmoi init rokcso/dotgraft` 不会 clone 本仓库，而是继续使用现有 source。bootstrap.sh 会检测并拒绝这种情况；手动走这条命令前，请先确认 source 为空，或先备份并移开它。
+已经在用 chezmoi 也可以直接装，两边互不影响。手动等价命令：
+
+```bash
+chezmoi \
+  --source "${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi-dotgraft" \
+  --config "${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/chezmoi.toml" \
+  --destination "$HOME" \
+  init --apply rokcso/dotgraft
+```
+
+> 这条手动路径**只拉配置**，不会装 chezmoi、不会预览 diff，也不会处理 macOS 上的 Ghostty 覆盖文件。依赖会在 `apply` 过程中由 `run_onchange` 脚本补装；如果补装失败，再运行 `dotgraft deps`。日常建议直接用 bootstrap。
 
 ## 选配
 
-安装时问三个问题，答案存在 `~/.config/chezmoi/chezmoi.toml`，**不进仓库**：
+安装时问三个问题，答案存在 `~/.config/dotgraft/chezmoi.toml`，**不进仓库**：
 
 | 问题 | 作用 |
 |---|---|
@@ -66,11 +75,12 @@ dotgraft reconfigure
 | `dotgraft deps` | 无条件安装/修复 Homebrew 依赖（不受 `run_onchange` 缓存影响） |
 | `dotgraft reconfigure` | 重新选配，并修复依赖 |
 | `dotgraft edit <文件>` | 编辑受管文件的仓库副本 |
-| `dotgraft cd` | 进入 chezmoi 源目录 |
+| `dotgraft cd` | 进入 Dotgraft 的 chezmoi 源目录 |
+| `dotgraft chezmoi <args>` | 在 Dotgraft 的 source/config 上执行 chezmoi 子命令 |
 | `dotgraft doctor` | 环境自检 |
 | `dotgraft uninstall` | 卸载 |
 
-底层 `chezmoi` 命令同样可用。
+直接运行 `chezmoi` 会使用你自己的默认 source/config，不会看到 Dotgraft；需要底层命令时用 `dotgraft chezmoi ...`。
 
 ## 会改动哪些文件
 
@@ -84,15 +94,17 @@ dotgraft reconfigure
 | `~/.config/ghostty/config` | Ghostty 配置 | 完全接管，走模板 |
 | `~/.config/starship.toml` | Starship 配置 | 完全接管 |
 | `~/.local/bin/dotgraft` | 命令本体 | 完全接管 |
-| `~/.config/chezmoi/chezmoi.toml` | 选配答案 | 本机生成，不进仓库 |
+| `~/.config/dotgraft/chezmoi.toml` | Dotgraft 独立的选配答案 | 本机生成，不进仓库 |
 
 此外会创建/修改：
 
 | 路径 | 内容 |
 |---|---|
-| `~/.local/share/chezmoi` | chezmoi 源目录（git clone） |
+| `~/.local/share/chezmoi-dotgraft` | Dotgraft 独立的 chezmoi 源目录（git clone） |
 | `~/.config-backup/<时间戳>/` | 已有目标文件、Ghostty 覆盖文件和选配答案的备份 |
 | `~/Library/Application Support/com.mitchellh.ghostty/config` | 如果存在，会备份并移开，避免覆盖主题 |
+
+默认的 `~/.local/share/chezmoi` 和 `~/.config/chezmoi/` **不会被写入**。
 
 ## 卸载
 
@@ -100,13 +112,13 @@ dotgraft reconfigure
 dotgraft uninstall
 ```
 
-会先把所有受管文件、`~/.zshrc`、`~/.config/chezmoi/chezmoi.toml` 备份到 `~/.config-backup/<时间戳>/`（受管文件在 `files/` 下），然后删除受管文件、剥掉 `~/.zshrc` 里的标记区块、清理空目录，并在存在时恢复 bootstrap 移开的 Ghostty 覆盖配置。**不会**卸载 Homebrew 包。
+会先把所有受管文件、`~/.zshrc`、`~/.config/dotgraft/chezmoi.toml` 备份到 `~/.config-backup/<时间戳>/`（受管文件在 `files/` 下），然后删除受管文件、剥掉 `~/.zshrc` 里的标记区块、清理空目录，并在存在时恢复 bootstrap 移开的 Ghostty 覆盖配置。**不会**卸载 Homebrew 包。
 
 安全边界：
 
 - 如果 `~/.zshrc` 里的 dotgraft 区块不完整，卸载会直接拒绝，避免误删后面的内容。
 - 如果当前 chezmoi source 里混有 Dotgraft 之外的受管文件，卸载会列出它们并停止；请先手动处理。
-- 只有当 source 是干净的 Dotgraft 克隆（无未提交改动、无未推送提交、remote 像 dotgraft）时才会执行 `chezmoi purge`；否则保留 source，并提示你手动确认。
+- 只有当 Dotgraft 的独立 source 是干净克隆（无未提交改动、无未推送提交、remote 像 dotgraft）时才会执行 `chezmoi purge`；否则保留 source，并提示你手动确认。
 
 注意 `chezmoi purge` 单独跑是不够的——它按设计会保留所有目标文件。
 
@@ -129,7 +141,7 @@ dotgraft uninstall
 
 ## 状态
 
-已实现：安装、更新、卸载、选配、依赖修复、CI（shellcheck / shfmt / zsh -n / 渲染后校验 Ghostty 配置）。冒烟测试覆盖安装、重新选配、卸载安全边界、`.zshrc` 损坏状态和依赖失败传播。验证环境：Ghostty 1.3.1 · Starship 1.27.0 · zsh 5.9 · chezmoi 2.73 · macOS 27。
+已实现：安装、更新、卸载、选配、依赖修复、独立 chezmoi source、CI（shellcheck / shfmt / zsh -n / bats 单元测试 / 渲染后校验 Ghostty 配置）。冒烟测试覆盖安装、重新选配、卸载安全边界、`.zshrc` 损坏状态和依赖失败传播；bats 覆盖路径白名单、区块解析、备份和 purge 判定。验证环境：Ghostty 1.3.1 · Starship 1.27.0 · zsh 5.9 · chezmoi 2.73 · macOS 27。
 
 尚未支持：Linux。Ghostty 的安装方式、字体路径和几个配置项在 Linux 上都不同，而本仓库没有 Linux 环境可验证。欢迎到 [issues](https://github.com/rokcso/dotgraft/issues) 说明发行版。
 

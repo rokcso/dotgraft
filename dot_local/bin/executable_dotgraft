@@ -6,9 +6,12 @@
 # 首次安装走 bootstrap.sh，不是这个脚本。
 # ==============================================================================
 
-set -euo pipefail
-
 APPLY_CANCELED=0
+
+# 独立 source：不占用用户的 ~/.local/share/chezmoi，也不改 ~/.config/chezmoi。
+# 可用环境变量覆盖，测试和特殊安装布局会用到。
+DOTGRAFT_SOURCE="${DOTGRAFT_SOURCE:-${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi-dotgraft}"
+DOTGRAFT_CONFIG="${DOTGRAFT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/chezmoi.toml}"
 
 step() { printf '\n==> %s\n' "$*"; }
 note() { printf '    %s\n' "$*"; }
@@ -29,8 +32,13 @@ require_chezmoi() {
   command -v chezmoi > /dev/null 2>&1 || die "找不到 chezmoi。重新安装请跑 bootstrap.sh"
 }
 
-source_path() {
-  chezmoi source-path 2> /dev/null
+# 所有 chezmoi 调用都走这里，确保 source/config/destination 一致。
+chezmoi_dg() {
+  chezmoi \
+    --source "$DOTGRAFT_SOURCE" \
+    --config "$DOTGRAFT_CONFIG" \
+    --destination "$HOME" \
+    "$@"
 }
 
 # 判断当前 chezmoi source 是否真的是 Dotgraft。
@@ -39,8 +47,7 @@ source_path() {
 # 如果用户把 dotgraft 命令指向了另一个 dotfiles 仓库，后果很严重。
 # 新版本 source 有 .dotgraft-source 标记；旧版本用文件内容兜底。
 is_dotgraft_source() {
-  local src
-  src="$(source_path)" || return 1
+  local src="$DOTGRAFT_SOURCE"
   [[ -n "$src" && -d "$src" ]] || return 1
   [[ -f "$src/.dotgraft-source" ]] && return 0
   [[ -f "$src/.chezmoi.toml.tmpl" ]] &&
@@ -50,7 +57,7 @@ is_dotgraft_source() {
 
 require_dotgraft_source() {
   require_chezmoi
-  is_dotgraft_source || die "当前 chezmoi 源目录不是 Dotgraft：$(source_path || printf '未知')。为安全起见，已停止。"
+  is_dotgraft_source || die "当前 Dotgraft 源目录不是有效仓库：${DOTGRAFT_SOURCE}。为安全起见，已停止。"
 }
 
 hash_file() {
@@ -128,7 +135,7 @@ backup_file() {
 # 避免把用户加在同一 source 里的私有 dotfiles 一起删掉。
 can_purge_source() {
   local src ahead
-  src="$(source_path)" || return 1
+  src="$DOTGRAFT_SOURCE"
   is_dotgraft_source || return 1
   git -C "$src" rev-parse --git-dir > /dev/null 2>&1 || return 1
   [[ -z "$(git -C "$src" status --porcelain 2> /dev/null)" ]] || return 1
@@ -143,19 +150,20 @@ can_purge_source() {
 cmd_status() {
   require_dotgraft_source
   step "配置状态"
-  note "源目录: $(chezmoi source-path)"
+  note "源目录: $DOTGRAFT_SOURCE"
+  note "配置:   $DOTGRAFT_CONFIG"
   note "chezmoi: $(chezmoi --version | head -1)"
 
   printf '\n'
-  note "选配结果（存在 ~/.config/chezmoi/chezmoi.toml，不进仓库）:"
-  note "  工具:   $(chezmoi execute-template '{{ if .tools }}{{ .tools | join " " }}{{ else }}（无）{{ end }}')"
-  note "  主题:   $(chezmoi execute-template '{{ .theme }}')"
-  note "  毛玻璃: $(chezmoi execute-template '{{ if .glass }}原生（macOS 26+）{{ else }}数字模糊{{ end }}')"
+  note "选配结果（存在 ${DOTGRAFT_CONFIG}，不进仓库）:"
+  note "  工具:   $(chezmoi_dg execute-template '{{ if .tools }}{{ .tools | join " " }}{{ else }}（无）{{ end }}')"
+  note "  主题:   $(chezmoi_dg execute-template '{{ .theme }}')"
+  note "  毛玻璃: $(chezmoi_dg execute-template '{{ if .glass }}原生（macOS 26+）{{ else }}数字模糊{{ end }}')"
 
   printf '\n'
   note "与仓库的差异:"
   local st
-  st="$(chezmoi status || true)"
+  st="$(chezmoi_dg status || true)"
   if [[ -z "$st" ]]; then
     note "  无差异，已同步"
   else
@@ -169,7 +177,7 @@ cmd_status() {
 cmd_diff() {
   require_dotgraft_source
   local out
-  out="$(chezmoi diff --no-pager --exclude=scripts 2>&1 || true)"
+  out="$(chezmoi_dg diff --no-pager --exclude=scripts 2>&1 || true)"
   if [[ -z "$out" ]]; then
     note "没有待应用的文件改动（依赖脚本不在此预览）。"
   else
@@ -180,12 +188,12 @@ cmd_diff() {
 cmd_apply() {
   require_dotgraft_source
   local out
-  out="$(chezmoi diff --no-pager --exclude=scripts 2>&1 || true)"
+  out="$(chezmoi_dg diff --no-pager --exclude=scripts 2>&1 || true)"
   if [[ -z "$out" ]]; then
     note "没有待应用的文件改动。"
     # 仍然跑一次 apply：文件没变不代表 run_onchange 脚本没变，
     # 例如只改了 Brewfile 时，依赖安装必须有机会执行。
-    chezmoi apply
+    chezmoi_dg apply
     note "完成。"
     return 0
   fi
@@ -196,7 +204,7 @@ cmd_apply() {
     APPLY_CANCELED=1
     return 0
   }
-  chezmoi apply
+  chezmoi_dg apply
   note "完成。开新终端窗口或 exec zsh 让 shell 配置生效。"
 }
 
@@ -208,12 +216,12 @@ cmd_apply() {
 cmd_deps() {
   require_dotgraft_source
   local src tmpl
-  src="$(source_path)"
+  src="$DOTGRAFT_SOURCE"
   tmpl="$src/run_onchange_install-packages.sh.tmpl"
   [[ -f "$tmpl" ]] || die "找不到依赖安装模板：$tmpl"
 
   step "安装 / 修复依赖"
-  chezmoi execute-template < "$tmpl" | sh
+  chezmoi_dg execute-template < "$tmpl" | sh
   note "依赖完成。"
 }
 
@@ -223,7 +231,7 @@ cmd_deps() {
 cmd_update() {
   require_dotgraft_source
   local src before after
-  src="$(source_path)"
+  src="$DOTGRAFT_SOURCE"
   git -C "$src" rev-parse --git-dir > /dev/null 2>&1 || die "源目录不是 git 仓库，无法更新：$src"
 
   step "更新到上游最新"
@@ -235,7 +243,7 @@ cmd_update() {
 
   if [[ "$before" != "$after" ]]; then
     step "选配模板有更新，重新询问配置"
-    chezmoi init
+    chezmoi_dg init
   fi
 
   APPLY_CANCELED=0
@@ -256,7 +264,7 @@ cmd_reconfigure() {
   step "重新选择组件"
   note "（会重新问那几个问题，答案只覆盖本机配置）"
   printf '\n'
-  chezmoi init
+  chezmoi_dg init
   printf '\n'
 
   APPLY_CANCELED=0
@@ -279,17 +287,17 @@ cmd_edit() {
     note "  dotgraft edit ~/.config/ghostty/config"
     exit 1
   fi
-  chezmoi edit "$@"
+  chezmoi_dg edit "$@"
 }
 
 cmd_cd() {
   require_dotgraft_source
-  chezmoi cd
+  chezmoi_dg cd
 }
 
 cmd_doctor() {
   require_chezmoi
-  chezmoi doctor
+  chezmoi_dg doctor
 }
 
 # ==============================================================================
@@ -325,13 +333,13 @@ cmd_uninstall() {
   step "卸载 Dotgraft"
 
   local src
-  src="$(source_path)"
+  src="$DOTGRAFT_SOURCE"
 
   # 先做完全部只读检查，再动任何文件。
   zshrc_block_ok || die "$HOME/.zshrc 里的 dotgraft 区块不完整（有开始标记但没有结束标记，或反过来）。为避免误删，已停止。请先手动修复该区块。"
 
   local managed_list f unexpected=0
-  if ! managed_list="$(chezmoi managed --include=files --path-style=absolute 2> /dev/null)"; then
+  if ! managed_list="$(chezmoi_dg managed --include=files --path-style=absolute 2> /dev/null)"; then
     die "无法读取 chezmoi 受管文件列表。请先运行 dotgraft doctor 检查环境。"
   fi
 
@@ -353,7 +361,7 @@ cmd_uninstall() {
       - 删除 ~/.config/zsh/、~/.config/ghostty/config、~/.config/starship.toml
       - 删除 ~/.local/bin/dotgraft
       - 从 ~/.zshrc 移除 dotgraft 区块（其余内容保留）
-      - 如果源目录是干净的 Dotgraft 克隆，清理 chezmoi 状态
+      - 如果源目录是干净的 Dotgraft 克隆，清理 Dotgraft 自己的 chezmoi 状态
 
     不会：
       - 删除源目录里的私有文件/未提交改动（检测到就跳过清理）
@@ -378,9 +386,9 @@ WARN
     backup_file "$f" "$backup/files" || die "备份失败，已停止卸载：$f"
   done <<< "$managed_list"
 
-  # 2. 备份 chezmoi 的选配答案
-  if [[ -f "$HOME/.config/chezmoi/chezmoi.toml" ]]; then
-    cp -p "$HOME/.config/chezmoi/chezmoi.toml" "$backup/chezmoi.toml" ||
+  # 2. 备份 Dotgraft 独立的 chezmoi 选配答案
+  if [[ -f "$DOTGRAFT_CONFIG" ]]; then
+    cp -p "$DOTGRAFT_CONFIG" "$backup/chezmoi.toml" ||
       warn "无法备份 chezmoi.toml"
   fi
 
@@ -415,19 +423,32 @@ WARN
   rmdir "$HOME/.config/ghostty" 2> /dev/null || true
   rmdir "$HOME/.local/bin" 2> /dev/null || true
 
-  # 7. 只在完全安全时清理 chezmoi 自身
+  # 7. 只在完全安全时清理 Dotgraft 自己的 source/config
   if can_purge_source; then
-    chezmoi purge --force
-    note "已清理 chezmoi 源码、配置和状态"
+    chezmoi_dg purge --force
+    rmdir "$(dirname "$DOTGRAFT_CONFIG")" 2> /dev/null || true
+    note "已清理 Dotgraft 的 chezmoi 源码、配置和状态"
   else
     warn "源目录未清理：$src"
     note "它可能包含你的私有文件或未提交改动。确认无误后可手动执行："
-    note "  chezmoi purge --force"
+    note "  dotgraft chezmoi purge --force"
   fi
 
   printf '\n'
   note "备份目录: $backup"
   note "开新终端窗口，你的 shell 会回到安装前的状态。"
+}
+
+# ==============================================================================
+# chezmoi passthrough
+# ==============================================================================
+cmd_chezmoi() {
+  require_chezmoi
+  exec chezmoi \
+    --source "$DOTGRAFT_SOURCE" \
+    --config "$DOTGRAFT_CONFIG" \
+    --destination "$HOME" \
+    "$@"
 }
 
 # ==============================================================================
@@ -447,7 +468,8 @@ dotgraft —— 终端配置管理
   deps          无条件安装/修复 Homebrew 依赖
   reconfigure   重新选择组件（工具 / 主题 / 毛玻璃）
   edit <文件>   编辑某个受管文件的仓库副本
-  cd            进入 chezmoi 源目录
+  cd            进入 Dotgraft 的 chezmoi 源目录
+  chezmoi ...   在 Dotgraft 的 source/config 上执行 chezmoi 子命令
   doctor        检查环境
   uninstall     卸载（备份受管文件，保留 Homebrew 包）
 
@@ -472,6 +494,7 @@ main() {
     reconfigure) cmd_reconfigure ;;
     edit) cmd_edit "$@" ;;
     cd) cmd_cd ;;
+    chezmoi) cmd_chezmoi "$@" ;;
     doctor) cmd_doctor ;;
     uninstall) cmd_uninstall ;;
     help | -h | --help) cmd_help ;;
@@ -484,4 +507,7 @@ main() {
   esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  set -euo pipefail
+  main "$@"
+fi

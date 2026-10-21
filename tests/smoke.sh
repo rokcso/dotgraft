@@ -91,17 +91,44 @@ chezmoi_at() {
     "$@"
 }
 
-# 用默认 source 安装一份，专门测 dotgraft 命令本身
+# 用独立 source/config 安装一份，专门测 dotgraft 命令本身。
+# 同时预置用户的默认 chezmoi 配置，验证 Dotgraft 不会碰它。
 setup_cli_home() {
   local home="$1"
-  mkdir -p "$home/.local/share/chezmoi"
+  local src="$home/.local/share/chezmoi-dotgraft"
+  local cfg="$home/.config/dotgraft/chezmoi.toml"
+  mkdir -p "$src" "$(dirname "$cfg")" "$home/.config/chezmoi" "$home/.local/share/chezmoi"
+  printf '# USER_CHEZMOI_CONFIG\n' > "$home/.config/chezmoi/chezmoi.toml"
+  printf '# USER_DEFAULT_SOURCE\n' > "$home/.local/share/chezmoi/user-file"
   (cd "$REPO_DIR" && tar --exclude=.git --exclude=refs -cf - .) |
-    (cd "$home/.local/share/chezmoi" && tar -xf -)
-  HOME="$home" chezmoi init \
+    (cd "$src" && tar -xf -)
+  HOME="$home" chezmoi \
+    --source "$src" --config "$cfg" --destination "$home" \
+    init \
     --promptMultichoice "$Q_TOOLS=fzf/zoxide" \
     --promptChoice "$Q_THEME=Catppuccin Mocha" \
     --promptBool "$Q_GLASS=true" > /dev/null
-  HOME="$home" chezmoi apply --exclude=scripts > /dev/null
+  HOME="$home" chezmoi \
+    --source "$src" --config "$cfg" --destination "$home" \
+    apply --exclude=scripts > /dev/null
+}
+
+dotgraft_at() {
+  local home="$1"
+  shift
+  HOME="$home" \
+    DOTGRAFT_SOURCE="$home/.local/share/chezmoi-dotgraft" \
+    DOTGRAFT_CONFIG="$home/.config/dotgraft/chezmoi.toml" \
+    "$home/.local/bin/dotgraft" "$@"
+}
+
+dotgraft_script_at() {
+  local home="$1"
+  shift
+  HOME="$home" \
+    DOTGRAFT_SOURCE="$home/.local/share/chezmoi-dotgraft" \
+    DOTGRAFT_CONFIG="$home/.config/dotgraft/chezmoi.toml" \
+    bash "$REPO_DIR/dot_local/bin/executable_dotgraft" "$@"
 }
 
 # ------------------------------------------------------------------------------
@@ -319,15 +346,28 @@ fi
 step "场景: uninstall 拒绝非 Dotgraft 受管文件"
 cli="$TMP/cli-unexpected"
 setup_cli_home "$cli"
-printf 'private\n' > "$cli/.local/share/chezmoi/dot_private"
-HOME="$cli" chezmoi apply --exclude=scripts > /dev/null
-if HOME="$cli" bash "$REPO_DIR/dot_local/bin/executable_dotgraft" uninstall <<< 'y' > /dev/null 2>&1; then
+printf 'private\n' > "$cli/.local/share/chezmoi-dotgraft/dot_private"
+HOME="$cli" chezmoi --source "$cli/.local/share/chezmoi-dotgraft" \
+  --config "$cli/.config/dotgraft/chezmoi.toml" --destination "$cli" \
+  apply --exclude=scripts > /dev/null
+if dotgraft_script_at "$cli" uninstall <<< 'y' > /dev/null 2>&1; then
   bad "uninstall 应该拒绝非 Dotgraft 受管文件"
 else
   ok "uninstall 拒绝了非 Dotgraft 受管文件"
 fi
 assert_file "$cli/.private"
 assert_file "$cli/.config/ghostty/config"
+if [[ "$(dotgraft_at "$cli" chezmoi source-path)" == "$cli/.local/share/chezmoi-dotgraft" ]]; then
+  ok "dotgraft chezmoi 使用独立 source"
+else
+  bad "dotgraft chezmoi 没有使用独立 source"
+fi
+status_out="$(dotgraft_at "$cli" status 2>&1 || true)"
+if [[ "$status_out" == *"chezmoi-dotgraft"* ]] && [[ "$status_out" == *"dotgraft/chezmoi.toml"* ]]; then
+  ok "dotgraft status 显示独立 source/config"
+else
+  bad "dotgraft status 没有显示独立 source/config"
+fi
 
 # ------------------------------------------------------------------------------
 # 卸载成功路径：备份、移除区块、恢复 Ghostty 覆盖文件
@@ -338,7 +378,7 @@ setup_cli_home "$cli2"
 ghostty_override_dir="$cli2/Library/Application Support/com.mitchellh.ghostty"
 mkdir -p "$ghostty_override_dir"
 printf 'theme = Original\n' > "$ghostty_override_dir/config.before-dotgraft"
-if HOME="$cli2" bash "$REPO_DIR/dot_local/bin/executable_dotgraft" uninstall <<< 'y' > /dev/null 2>&1; then
+if dotgraft_script_at "$cli2" uninstall <<< 'y' > /dev/null 2>&1; then
   ok "uninstall 正常退出"
 else
   bad "uninstall 非零退出"
@@ -357,7 +397,9 @@ if find "$cli2/.config-backup" -path '*/files/.config/zsh/conf.d/90-local.zsh' -
 else
   bad "90-local.zsh 没有备份"
 fi
-assert_dir "$cli2/.local/share/chezmoi"
+assert_dir "$cli2/.local/share/chezmoi-dotgraft"
+assert_contains "$cli2/.config/chezmoi/chezmoi.toml" "USER_CHEZMOI_CONFIG"
+assert_contains "$cli2/.local/share/chezmoi/user-file" "USER_DEFAULT_SOURCE"
 
 # ------------------------------------------------------------------------------
 # 卸载安全：.zshrc 区块不完整时不能动任何东西
@@ -370,7 +412,7 @@ export KEEP=1
 # >>> dotgraft >>>
 source "$HOME/.config/zsh/init.zsh"
 EOF
-if HOME="$cli3" bash "$REPO_DIR/dot_local/bin/executable_dotgraft" uninstall <<< 'y' > /dev/null 2>&1; then
+if dotgraft_script_at "$cli3" uninstall <<< 'y' > /dev/null 2>&1; then
   bad "区块不完整时 uninstall 应该拒绝执行"
 else
   ok "区块不完整时 uninstall 拒绝执行"
@@ -384,7 +426,7 @@ cat > "$cli3/.zshrc" << 'EOF'
 export KEEP_ORDER=1
 # >>> dotgraft >>>
 EOF
-if HOME="$cli3" bash "$REPO_DIR/dot_local/bin/executable_dotgraft" uninstall <<< 'y' > /dev/null 2>&1; then
+if dotgraft_script_at "$cli3" uninstall <<< 'y' > /dev/null 2>&1; then
   bad "结束标记在开始标记之前时 uninstall 应该拒绝执行"
 else
   ok "结束标记在开始标记之前时 uninstall 拒绝执行"
@@ -413,15 +455,34 @@ chmod +x "$fakebin/brew"
 
 step "场景: bootstrap 拒绝非 Dotgraft 源目录"
 boot_home="$TMP/boot-home"
-mkdir -p "$boot_home/.local/share/chezmoi"
-printf 'someone else\n' > "$boot_home/.local/share/chezmoi/dot_other"
+mkdir -p "$boot_home/.local/share/chezmoi-dotgraft" "$boot_home/.local/share/chezmoi"
+printf 'someone else\n' > "$boot_home/.local/share/chezmoi-dotgraft/dot_other"
+printf 'my own chezmoi source\n' > "$boot_home/.local/share/chezmoi/dot_mine"
 if printf 'y\n' | HOME="$boot_home" PATH="$fakebin:$PATH" \
+  DOTGRAFT_SOURCE="$boot_home/.local/share/chezmoi-dotgraft" \
+  DOTGRAFT_CONFIG="$boot_home/.config/dotgraft/chezmoi.toml" \
   DOTGRAFT_REPO="$REPO_DIR" bash "$REPO_DIR/bootstrap.sh" > /dev/null 2>&1; then
   bad "bootstrap 应该拒绝非 Dotgraft 源目录"
 else
   ok "bootstrap 拒绝了非 Dotgraft 源目录"
 fi
-assert_file "$boot_home/.local/share/chezmoi/dot_other"
+assert_file "$boot_home/.local/share/chezmoi-dotgraft/dot_other"
+assert_file "$boot_home/.local/share/chezmoi/dot_mine"
+
+step "场景: bootstrap 拒绝旧版默认 source"
+legacy_home="$TMP/legacy-home"
+mkdir -p "$legacy_home/.local/share/chezmoi"
+printf 'dotgraft\n' > "$legacy_home/.local/share/chezmoi/.dotgraft-source"
+printf 'old\n' > "$legacy_home/.local/share/chezmoi/old-file"
+if printf 'y\n' | HOME="$legacy_home" PATH="$fakebin:$PATH" \
+  DOTGRAFT_SOURCE="$legacy_home/.local/share/chezmoi-dotgraft" \
+  DOTGRAFT_CONFIG="$legacy_home/.config/dotgraft/chezmoi.toml" \
+  DOTGRAFT_REPO="$REPO_DIR" bash "$REPO_DIR/bootstrap.sh" > /dev/null 2>&1; then
+  bad "bootstrap 应该拒绝旧版默认 source"
+else
+  ok "bootstrap 拒绝旧版默认 source"
+fi
+assert_file "$legacy_home/.local/share/chezmoi/old-file"
 
 # ------------------------------------------------------------------------------
 # deps：无条件重跑依赖安装，并把失败反映到退出码
@@ -430,8 +491,8 @@ step "场景: dotgraft deps 可重复执行且传播失败"
 cli4="$TMP/cli-deps"
 setup_cli_home "$cli4"
 brew_log="$TMP/brew.log"
-if FAKE_BREW_LOG="$brew_log" HOME="$cli4" PATH="$fakebin:$PATH" \
-  "$cli4/.local/bin/dotgraft" deps > /dev/null 2>&1; then
+if FAKE_BREW_LOG="$brew_log" PATH="$fakebin:$PATH" \
+  dotgraft_at "$cli4" deps > /dev/null 2>&1; then
   ok "dotgraft deps 正常执行"
 else
   bad "dotgraft deps 意外失败"
@@ -441,8 +502,8 @@ if grep -q 'bundle' "$brew_log" 2> /dev/null; then
 else
   bad "deps 没有调用 brew bundle"
 fi
-if FAKE_BREW_LOG="$brew_log" FAKE_BREW_FAIL=1 HOME="$cli4" PATH="$fakebin:$PATH" \
-  "$cli4/.local/bin/dotgraft" deps > /dev/null 2>&1; then
+if FAKE_BREW_LOG="$brew_log" FAKE_BREW_FAIL=1 PATH="$fakebin:$PATH" \
+  dotgraft_at "$cli4" deps > /dev/null 2>&1; then
   bad "deps 应该把 brew 失败传播成非零退出"
 else
   ok "deps 把 brew 失败传播成非零退出"

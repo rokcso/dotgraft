@@ -200,13 +200,31 @@ dotgraft deps
 
 ## bootstrap 说源目录不像 Dotgraft
 
-`chezmoi init <repo>` 在默认 source 已有内容时**不会 clone**，而是沿用现有 source。为避免把别人的 dotfiles 当成 Dotgraft 应用，bootstrap 会直接停止。按提示备份并移开：
+Dotgraft 使用独立 source：
 
-```bash
-mv "$HOME/.local/share/chezmoi" "$HOME/.local/share/chezmoi.before-dotgraft.$(date +%Y%m%d_%H%M%S)"
+```
+~/.local/share/chezmoi-dotgraft
 ```
 
-然后重新运行 bootstrap。
+`chezmoi init` 在 source 已有内容时**不会 clone**，而是沿用现有 source。为避免把别的 dotfiles 当成 Dotgraft 应用，bootstrap 会直接停止。按提示备份并移开 Dotgraft 的 source：
+
+```bash
+mv "$HOME/.local/share/chezmoi-dotgraft" "$HOME/.local/share/chezmoi-dotgraft.before-dotgraft.$(date +%Y%m%d_%H%M%S)"
+```
+
+如果提示的是旧版默认 source，请先用旧版 `dotgraft uninstall`，或移开 `~/.local/share/chezmoi`。你自己的默认 chezmoi source/config 不会被新安装改动。
+
+## 直接跑 `chezmoi` 看不到 Dotgraft
+
+这是独立 source 的预期行为。用：
+
+```bash
+dotgraft chezmoi status
+dotgraft chezmoi diff
+dotgraft cd
+```
+
+需要底层命令时统一走 `dotgraft chezmoi ...`。
 
 ## 卸载被拒绝
 
@@ -223,12 +241,12 @@ mv "$HOME/.local/share/chezmoi" "$HOME/.local/share/chezmoi.before-dotgraft.$(da
 
 ## 卸载后 source 目录还在
 
-这是安全设计。只有当 source 是干净的 Dotgraft 克隆（无未提交改动、无未推送提交、remote 像 dotgraft）时，`dotgraft uninstall` 才会执行 `chezmoi purge`。否则会保留 source，避免删掉你加在同一仓库里的私有文件。
+这是安全设计。只有当 Dotgraft 的独立 source 是干净克隆（无未提交改动、无未推送提交、remote 像 dotgraft）时，`dotgraft uninstall` 才会执行 `chezmoi purge`。否则会保留 source，避免删掉你加在同一仓库里的私有文件。
 
-确认无误后可以手动清理：
+确认无误后可以手动清理 Dotgraft 自己的 source/config：
 
 ```bash
-chezmoi purge --force
+dotgraft chezmoi purge --force
 ```
 
 ## 更新时要求重新选配

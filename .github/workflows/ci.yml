@@ -67,8 +67,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install chezmoi
-        run: brew install chezmoi
+      - name: Install chezmoi and bats
+        run: brew install chezmoi bats-core
 
       # cask 装的是 .app，不保证在 PATH 里建符号链接，
       # tests/smoke.sh 会自己去 /Applications 找二进制。
@@ -76,6 +76,9 @@ jobs:
       # CI 会在“看起来绿了”的情况下失去最关键的验证。
       - name: Install Ghostty
         run: brew install --cask ghostty
+
+      - name: Unit tests
+        run: bats tests/unit
 
       - name: Smoke test
         run: bash tests/smoke.sh

@@ -21,6 +21,9 @@ set -euo pipefail
 REPO_URL="${DOTGRAFT_REPO:-https://github.com/rokcso/dotgraft.git}"
 STAMP="$(date +%Y%m%d_%H%M%S)"
 BACKUP_DIR="$HOME/.config-backup/$STAMP"
+DOTGRAFT_SOURCE="${DOTGRAFT_SOURCE:-${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi-dotgraft}"
+DOTGRAFT_CONFIG="${DOTGRAFT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/chezmoi.toml}"
+LEGACY_SOURCE="${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi"
 GHOSTTY_OVERRIDE="$HOME/Library/Application Support/com.mitchellh.ghostty/config"
 GHOSTTY_OVERRIDE_MOVED=0
 GHOSTTY_OVERRIDE_SAVED=''
@@ -38,6 +41,15 @@ confirm() {
   printf '    %s [y/N] ' "$1"
   read -r reply
   [[ "$reply" == [yY] ]]
+}
+
+# 所有 chezmoi 调用都走这里，和安装后的 dotgraft 命令保持同一套路径。
+chezmoi_dg() {
+  chezmoi \
+    --source "$DOTGRAFT_SOURCE" \
+    --config "$DOTGRAFT_CONFIG" \
+    --destination "$HOME" \
+    "$@"
 }
 
 # 安装中途失败/被 Ctrl-C 时，把已经移开的 Ghostty 覆盖文件放回去。
@@ -88,8 +100,8 @@ cat << 'PLAN'
       ~/.config/ghostty/config          终端配置
       ~/.config/starship.toml           提示符配置
       ~/.local/bin/dotgraft             dotgraft 命令
-      ~/.config/chezmoi/chezmoi.toml    你的选配答案（不进仓库）
-      ~/.local/share/chezmoi            chezmoi 源目录
+      ~/.config/dotgraft/chezmoi.toml   Dotgraft 独立的选配答案
+      ~/.local/share/chezmoi-dotgraft   Dotgraft 独立的 chezmoi 源目录
       ~/.config-backup/<时间戳>/        已有配置的备份
 
     不会碰 ~/.zprofile 和 ~/.zshenv，不用 sudo，不修改 /etc。
@@ -120,45 +132,56 @@ source_looks_like_dotgraft() {
     grep -q 'Dotgraft' "$src/.chezmoi.toml.tmpl"
 }
 
-# 如果默认 source 已经有内容，chezmoi init 不会 clone 传入的 repo，
-# 而是直接沿用现有 source。那样用户会以为装了 dotgraft，实际却在
-# apply 自己的旧 dotfiles。这里必须在 init 之前拦住。
+# Dotgraft 使用独立 source。chezmoi init 在 source 已有内容时不会 clone，
+# 所以先确认目标目录为空，或者已经是一个 Dotgraft 仓库。
 ensure_source_available() {
-  local src
-  src="$(chezmoi source-path 2> /dev/null || true)"
-  [[ -n "$src" ]] || fail "无法确定 chezmoi 源目录"
-
-  if [[ -d "$src" && -n "$(ls -A "$src" 2> /dev/null || true)" ]]; then
-    if source_looks_like_dotgraft "$src"; then
-      note "检测到已有 Dotgraft 源目录，继续更新：$src"
+  if [[ -d "$DOTGRAFT_SOURCE" && -n "$(ls -A "$DOTGRAFT_SOURCE" 2> /dev/null || true)" ]]; then
+    if source_looks_like_dotgraft "$DOTGRAFT_SOURCE"; then
+      note "检测到已有 Dotgraft 源目录，继续更新：$DOTGRAFT_SOURCE"
     else
-      fail "chezmoi 源目录已存在，且不像 Dotgraft：$src
+      fail "Dotgraft 源目录已存在，且不像 Dotgraft：$DOTGRAFT_SOURCE
 
       chezmoi init 在源目录已有内容时不会 clone 新仓库，继续执行会
-      直接应用你原来的 dotfiles。为避免误操作，已停止。
+      直接应用里面的 dotfiles。为避免误操作，已停止。
 
-      请先备份并移开该目录，或把 DOTGRAFT_REPO 指向你想要的位置：
-        mv \"$src\" \"$src.before-dotgraft.$(date +%Y%m%d_%H%M%S)\"
+      请先备份并移开该目录：
+        mv \"$DOTGRAFT_SOURCE\" \"$DOTGRAFT_SOURCE.before-dotgraft.$(date +%Y%m%d_%H%M%S)\"
       然后重新运行 bootstrap.sh。"
     fi
   fi
 }
 
+# 旧版本把 dotgraft 装进了默认 source。换成独立 source 后，
+# 如果检测到旧布局，先提示卸载/移开，避免两套配置同时生效。
+check_legacy_source() {
+  if [[ -d "$DOTGRAFT_SOURCE" && -n "$(ls -A "$DOTGRAFT_SOURCE" 2> /dev/null || true)" ]]; then
+    return 0
+  fi
+  [[ -d "$LEGACY_SOURCE" && -n "$(ls -A "$LEGACY_SOURCE" 2> /dev/null || true)" ]] || return 0
+  source_looks_like_dotgraft "$LEGACY_SOURCE" || return 0
+  fail "检测到旧版 Dotgraft 安装在默认 source：$LEGACY_SOURCE
+
+      新版使用独立 source：${DOTGRAFT_SOURCE}。
+      请先用旧版命令卸载：
+        dotgraft uninstall
+      或手动移开旧 source：
+        mv \"$LEGACY_SOURCE\" \"$LEGACY_SOURCE.before-dotgraft.$(date +%Y%m%d_%H%M%S)\"
+      然后重新运行 bootstrap.sh。"
+}
+
 verify_dotgraft_source() {
-  local src
-  src="$(chezmoi source-path)"
-  source_looks_like_dotgraft "$src" ||
-    fail "chezmoi init 之后源目录仍不像 Dotgraft：$src。已停止，请检查仓库地址和网络。"
+  source_looks_like_dotgraft "$DOTGRAFT_SOURCE" ||
+    fail "chezmoi init 之后源目录仍不像 Dotgraft：${DOTGRAFT_SOURCE}。已停止，请检查仓库地址和网络。"
 }
 
 # chezmoi init 会重新渲染配置模板，覆盖已有的 chezmoi.toml。
 # 它不在 managed 列表里，所以要在 init 之前单独备份。
 backup_chezmoi_config() {
-  local file="$HOME/.config/chezmoi/chezmoi.toml"
+  local file="$DOTGRAFT_CONFIG"
   [[ -f "$file" ]] || return 0
   mkdir -p "$BACKUP_DIR"
   cp -p "$file" "$BACKUP_DIR/chezmoi.toml.before-dotgraft" 2> /dev/null ||
-    fail "无法备份已有 chezmoi.toml，已停止：$file"
+    fail "无法备份已有 Dotgraft chezmoi.toml，已停止：$file"
   note "已备份已有 chezmoi.toml 到 $BACKUP_DIR/chezmoi.toml.before-dotgraft"
 }
 
@@ -168,7 +191,7 @@ backup_chezmoi_config() {
 backup_existing_targets() {
   local f rel count=0 managed_files
   mkdir -p "$BACKUP_DIR/pre-existing"
-  if ! managed_files="$(chezmoi managed --include=files --path-style=absolute 2> /dev/null)"; then
+  if ! managed_files="$(chezmoi_dg managed --include=files --path-style=absolute 2> /dev/null)"; then
     fail "无法读取 chezmoi 受管文件列表，已停止。请先运行 chezmoi doctor。"
   fi
   while IFS= read -r f; do
@@ -196,13 +219,15 @@ backup_existing_targets() {
 # 选配问答 + 拉取配置
 # ==============================================================================
 ensure_source_available
+check_legacy_source
 backup_chezmoi_config
 
 step "选择要启用的组件"
 note "（下面几个问题由 chezmoi 提问，答案只保存在本机）"
 printf '\n'
 
-chezmoi init "$REPO_URL"
+mkdir -p "$(dirname "$DOTGRAFT_SOURCE")" "$(dirname "$DOTGRAFT_CONFIG")"
+chezmoi_dg init "$REPO_URL"
 verify_dotgraft_source
 
 # ==============================================================================
@@ -210,7 +235,7 @@ verify_dotgraft_source
 # ==============================================================================
 step "将要发生的改动"
 
-diff_output="$(chezmoi diff --no-pager --exclude=scripts 2>&1 || true)"
+diff_output="$(chezmoi_dg diff --no-pager --exclude=scripts 2>&1 || true)"
 if [[ -z "$diff_output" ]]; then
   note "没有待应用的改动，已经是最新的。"
 else
@@ -265,7 +290,7 @@ fi
 # 落盘
 # ==============================================================================
 step "应用配置"
-chezmoi apply
+chezmoi_dg apply
 # apply 成功后再失败（例如后面的提示）不应该恢复覆盖文件。
 GHOSTTY_OVERRIDE_MOVED=0
 
@@ -291,6 +316,11 @@ cat << 'DONE'
       dotgraft uninstall     卸载
 
 DONE
+
+printf '    Dotgraft 使用独立 source/config：\n'
+printf '      source: %s\n' "$DOTGRAFT_SOURCE"
+printf '      config: %s\n' "$DOTGRAFT_CONFIG"
+printf '    你自己的 ~/.local/share/chezmoi 和 ~/.config/chezmoi 不会被改动。\n\n'
 
 if [[ -d "$BACKUP_DIR" ]]; then
   printf '    本次备份：%s\n\n' "$BACKUP_DIR"

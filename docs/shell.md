@@ -163,7 +163,7 @@ Ghostty 自身的窗口操作见 [Ghostty 文档](ghostty.md#快捷键)。
 
 ## 加自己的东西
 
-写在 `~/.config/zsh/conf.d/90-local.zsh`。它用 `create_` 管理：只在不存在时创建，之后 `chezmoi apply` 不会覆盖。
+写在 `~/.config/zsh/conf.d/90-local.zsh`。它用 `create_` 管理：只在不存在时创建，之后 `dotgraft apply` 不会覆盖。
 
 不要在 `~/.zshrc` 的 dotgraft 区块里写任何东西——`dotgraft update` 会重写那个区块。
 

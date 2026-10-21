@@ -5,7 +5,7 @@
 改完生效方式：
 
 ```bash
-chezmoi apply          # 或 dotgraft apply
+dotgraft apply         # 同步 Dotgraft 的独立 source 到家目录
 # 然后在 Ghostty 里按 Cmd + Shift + ,
 ```
 
