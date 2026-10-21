@@ -427,6 +427,11 @@ if [[ "$status_out" == *"chezmoi-dotgraft"* ]] && [[ "$status_out" == *"dotgraft
 else
   bad "dotgraft status 没有显示独立 source/config"
 fi
+if [[ "$status_out" == *"版本:"* ]]; then
+  ok "dotgraft status 显示安装版本"
+else
+  bad "dotgraft status 没有显示安装版本"
+fi
 
 # ------------------------------------------------------------------------------
 # 卸载成功路径：备份、移除区块、恢复 Ghostty 覆盖文件

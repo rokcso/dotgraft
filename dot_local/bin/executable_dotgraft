@@ -75,6 +75,10 @@ hash_file() {
   shasum -a 256 "$1" | awk '{print $1}'
 }
 
+source_commit() {
+  git -C "$DOTGRAFT_SOURCE" log -1 --format='%h %s' 2> /dev/null || printf 'unknown'
+}
+
 default_glass() {
   local major
   major="$(sw_vers -productVersion 2> /dev/null | cut -d. -f1)"
@@ -288,6 +292,7 @@ cmd_status() {
   step "配置状态"
   note "源目录: $DOTGRAFT_SOURCE"
   note "配置:   $DOTGRAFT_CONFIG"
+  note "版本:   $(source_commit)"
   note "chezmoi: $(chezmoi --version | head -1)"
 
   printf '\n'
@@ -589,6 +594,7 @@ cmd_doctor() {
   fi
 
   if git -C "$DOTGRAFT_SOURCE" rev-parse --git-dir > /dev/null 2>&1; then
+    doctor_row ok "source commit" "$(source_commit)"
     if [[ -z "$(git -C "$DOTGRAFT_SOURCE" status --porcelain 2> /dev/null)" ]]; then
       doctor_row ok "source git" "clean"
     else

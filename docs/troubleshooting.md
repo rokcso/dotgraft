@@ -253,6 +253,45 @@ dotgraft chezmoi purge --force
 
 `dotgraft update` 先 `git pull`，再检查 `.chezmoi.toml.tmpl` 是否变化。变化时会重新运行 `chezmoi init`，避免上游新增 data key 后模板渲染失败。按提示回答即可。
 
+## `dotg` 无法使用 / 补全没有生效
+
+先确认不是“新配置还没加载”：
+
+```bash
+exec zsh
+whence -w dotg
+```
+
+预期：
+
+```text
+dotg: alias
+```
+
+再确认补全注册：
+
+```bash
+print ${_comps[dotg]}
+print ${_comps[dotgraft]}
+```
+
+预期都是 `_dotgraft`。如果 `dotg` 已经是一个系统命令，`80-dotgraft.zsh` 会保留它、不覆盖别名；这时继续用完整的 `dotgraft`。
+
+如果 `dotg` 完全不存在，检查安装的 source 版本：
+
+```bash
+dotgraft status
+```
+
+看 `版本:` 一行。旧安装可能停在只有 `dg`、还没有 `dotg` 的提交；先 `dotgraft update`，或重新安装最新版本。开发时用：
+
+```bash
+DOTGRAFT_REPO="$PWD" bash bootstrap.sh
+exec zsh
+```
+
+`DOTGRAFT_REPO="$PWD"` 只 clone 已 commit 的 HEAD；未提交改动需要用文档里的 `DOTGRAFT_SOURCE="$PWD" ... dotgraft apply` 方式。
+
 ## `dotgraft diff` 输出太长
 
 `dotgraft diff` 默认只显示 `chezmoi status` 的文件摘要，适合确认“会改哪些文件”。首次安装时所有目标都是新文件，完整 diff 会把整份 `starship.toml`、`dotgraft` 脚本打印出来，所以默认不显示。

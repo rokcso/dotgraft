@@ -46,6 +46,37 @@ chezmoi \
 
 > 这条手动路径**只拉配置**，不会装 chezmoi、不会预览 diff，也不会处理 macOS 上的 Ghostty 覆盖文件。依赖会在 `apply` 过程中由 `run_onchange` 脚本补装；如果补装失败，再运行 `dotgraft deps`。日常建议直接用 bootstrap。
 
+## 本地开发安装
+
+正式安装默认从 GitHub `main` clone。开发时想安装**本地当前提交**：
+
+```bash
+cd /Users/lin/Developer/GitHub-rokcso/dotgraft
+DOTGRAFT_REPO="$PWD" bash bootstrap.sh
+exec zsh
+dotg status
+```
+
+注意：
+
+- `DOTGRAFT_REPO="$PWD"` 只会 clone **已经 commit 的 HEAD**，不会带上未提交的工作区改动。
+- 这样安装后，`~/.local/share/chezmoi-dotgraft` 的 `origin` 是本地仓库路径，后续 commit 后可以直接 `dotg update` 从本地拉取。
+- 如果之后希望改回从 GitHub 更新，重新用默认 bootstrap 安装，或手动把 source 的 remote 改回 GitHub。
+
+不想每改一次就 commit，可以直接让 `dotgraft` 使用工作区作为 source：
+
+```bash
+DOTGRAFT_SOURCE="$PWD" \
+DOTGRAFT_CONFIG="$HOME/.config/dotgraft/chezmoi.toml" \
+dotgraft diff
+
+DOTGRAFT_SOURCE="$PWD" \
+DOTGRAFT_CONFIG="$HOME/.config/dotgraft/chezmoi.toml" \
+dotgraft apply
+```
+
+这会用当前工作区（包括未提交改动）直接同步到真实 `$HOME`。改 shell 配置后记得 `exec zsh`。
+
 ## 选配
 
 安装时会问三项，答案存在 `~/.config/dotgraft/chezmoi.toml`，**不进仓库**：
