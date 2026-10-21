@@ -149,6 +149,35 @@ setopt HIST_IGNORE_SPACE     # 命令前加空格则不记录
 
 `HIST_IGNORE_SPACE` 用来处理临时粘贴的敏感内容：命令前敲一个空格就不会进历史。
 
+## 短别名与补全
+
+正式命令是 `dotgraft`。`80-dotgraft.zsh` 会在 `dg` **未被占用**时添加：
+
+```zsh
+alias dg='dotgraft'
+```
+
+检测用的是 `whence -w dg`，会同时检查命令、别名和函数；如果用户已经有 `dg`，不会覆盖。
+
+补全同时注册给两个名字：
+
+```bash
+dotgraft <Tab>
+dg <Tab>
+```
+
+子命令包括 `status` / `diff` / `apply` / `update` / `deps` / `reconfigure` / `edit` / `cd` / `chezmoi` / `doctor` / `uninstall` / `help`。`edit` 会继续用 zsh 的文件补全补目标路径。
+
+如果补全没有生效，先确认 `20-completion.zsh` 已经执行过 `compinit`：
+
+```bash
+whence -w _dotgraft
+print ${_comps[dotgraft]}
+print ${_comps[dg]}
+```
+
+预期都指向 `_dotgraft`。
+
 ## 快捷键
 
 | 快捷键 | 作用 |

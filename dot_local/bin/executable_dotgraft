@@ -78,6 +78,7 @@ is_allowed_target() {
       .config/zsh/conf.d/50-functions.zsh | \
       .config/zsh/conf.d/60-plugins.zsh | \
       .config/zsh/conf.d/70-aliases.zsh | \
+      .config/zsh/conf.d/80-dotgraft.zsh | \
       .config/zsh/conf.d/90-local.zsh | \
       .config/zsh/conf.d/99-highlighting.zsh | \
       .config/ghostty/config | \

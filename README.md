@@ -82,6 +82,23 @@ dotgraft reconfigure
 
 直接运行 `chezmoi` 会使用你自己的默认 source/config，不会看到 Dotgraft；需要底层命令时用 `dotgraft chezmoi ...`。
 
+如果系统里没有现成的 `dg` 命令，安装后会自动得到一个短别名：
+
+```bash
+dg status
+dg update
+dg deps
+```
+
+`dotgraft` 和 `dg` 都支持子命令补全：
+
+```bash
+dotgraft <Tab>
+dg <Tab>
+```
+
+如果 `dg` 已经被别的命令占用，Dotgraft 不会覆盖它，继续使用完整的 `dotgraft`。
+
 ## 会改动哪些文件
 
 受管目标七处，另有 chezmoi 源目录、备份目录和 Ghostty 覆盖文件。不用 `sudo`，不动 `/etc`，**`~/.zprofile` 和 `~/.zshenv` 永不修改**。

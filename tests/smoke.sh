@@ -178,6 +178,7 @@ SEED
   assert_file "$conf_d/20-completion.zsh"
   assert_file "$conf_d/30-prompt.zsh"
   assert_file "$conf_d/60-plugins.zsh"
+  assert_file "$conf_d/80-dotgraft.zsh"
   assert_file "$conf_d/99-highlighting.zsh"
 
   # 可选片段跟着选择走
@@ -223,7 +224,7 @@ SEED
 
   # 渲染后的可选 zsh 片段和 .zshrc 必须是合法 zsh
   local zf
-  for zf in "$conf_d/40-tools.zsh" "$conf_d/50-functions.zsh" "$conf_d/70-aliases.zsh"; do
+  for zf in "$conf_d/40-tools.zsh" "$conf_d/50-functions.zsh" "$conf_d/70-aliases.zsh" "$conf_d/80-dotgraft.zsh"; do
     [[ -e "$zf" ]] || continue
     if zsh -n "$zf" 2> /dev/null; then
       ok "zsh 语法通过 $(basename "$zf")"
@@ -251,6 +252,7 @@ SEED
         .config/zsh/conf.d/50-functions.zsh | \
         .config/zsh/conf.d/60-plugins.zsh | \
         .config/zsh/conf.d/70-aliases.zsh | \
+        .config/zsh/conf.d/80-dotgraft.zsh | \
         .config/zsh/conf.d/90-local.zsh | \
         .config/zsh/conf.d/99-highlighting.zsh | \
         .config/ghostty/config | \
@@ -338,6 +340,48 @@ if [[ "$block_count" == "1" ]]; then
   ok "重新选配后 .zshrc 仍只有一个 dotgraft 区块"
 else
   bad "重新选配后 dotgraft 区块出现 $block_count 次"
+fi
+
+# ------------------------------------------------------------------------------
+# 短别名与补全
+# ------------------------------------------------------------------------------
+step "场景: dg 别名与补全"
+shortcuts="$TMP/shortcuts"
+mkdir -p "$shortcuts"
+chezmoi_at "$shortcuts" init --promptMultichoice "$Q_TOOLS=" \
+  --promptChoice "$Q_THEME=Catppuccin Mocha" --promptBool "$Q_GLASS=true" > /dev/null
+chezmoi_at "$shortcuts" apply --exclude=scripts > /dev/null
+
+shortcut_out="$(HOME="$shortcuts" zsh -i -c '
+  echo "dg_whence=$(whence -w dg 2>/dev/null)"
+  echo "dg_comp=${_comps[dg]:-}"
+  echo "dotgraft_comp=${_comps[dotgraft]:-}"
+  echo "has_fn=$(( $+functions[_dotgraft] ))"
+' 2> /dev/null)"
+
+if command -v dg > /dev/null 2>&1; then
+  ok "系统已有 dg 命令，跳过别名覆盖断言"
+else
+  if [[ "$shortcut_out" == *"dg_whence=dg: alias"* ]]; then
+    ok "dg 是 dotgraft 的别名"
+  else
+    bad "dg 别名没有生效"
+  fi
+fi
+if [[ "$shortcut_out" == *"dotgraft_comp=_dotgraft"* ]]; then
+  ok "dotgraft 补全已注册"
+else
+  bad "dotgraft 补全没有注册"
+fi
+if [[ "$shortcut_out" == *"dg_comp=_dotgraft"* ]]; then
+  ok "dg 补全已注册"
+else
+  bad "dg 补全没有注册"
+fi
+if [[ "$shortcut_out" == *"has_fn=1"* ]]; then
+  ok "_dotgraft 补全函数存在"
+else
+  bad "_dotgraft 补全函数不存在"
 fi
 
 # ------------------------------------------------------------------------------

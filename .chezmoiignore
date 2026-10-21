@@ -16,3 +16,6 @@ tests/
 
 # 参考资料（如果以后在本地 clone 同类项目，放这里就不会被部署）
 refs/
+
+# 本地安装基线/笔记，不部署
+PRE-INSTALL-STATE.md

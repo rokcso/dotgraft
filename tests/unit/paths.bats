@@ -15,6 +15,8 @@ load helpers
   [ "$status" -eq 0 ]
   run is_allowed_target "$HOME/.config/zsh/conf.d/40-tools.zsh"
   [ "$status" -eq 0 ]
+  run is_allowed_target "$HOME/.config/zsh/conf.d/80-dotgraft.zsh"
+  [ "$status" -eq 0 ]
 }
 
 @test "allowlist rejects other files" {

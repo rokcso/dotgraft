@@ -27,6 +27,7 @@
 │           ├── 50-functions.zsh.tmpl      # 选配
 │           ├── 60-plugins.zsh
 │           ├── 70-aliases.zsh.tmpl        # 选配
+│           ├── 80-dotgraft.zsh            # dg 别名 + 补全
 │           ├── create_90-local.zsh        # 只创建一次
 │           └── 99-highlighting.zsh        # 必须最后
 ├── dot_local/bin/executable_dotgraft      # → ~/.local/bin/dotgraft
@@ -68,6 +69,7 @@
 | 50 | `50-functions.zsh.tmpl` | `y`（yazi 包装） | 独立函数 |
 | 60 | `60-plugins.zsh` | zsh-autosuggestions | 要 hook 已设置好的 PROMPT |
 | 70 | `70-aliases.zsh.tmpl` | eza、bat 别名 | 放最后，避免影响前面 |
+| 80 | `80-dotgraft.zsh` | `dg` 别名 + `dotgraft`/`dg` 补全 | 在本地配置之前，补全依赖 `compinit` |
 | 90 | `create_90-local.zsh` | 你的机器专属配置 | 在收尾插件之前 |
 | 99 | `99-highlighting.zsh` | zsh-syntax-highlighting | **必须最后**，之后不能再 bindkey |
 
