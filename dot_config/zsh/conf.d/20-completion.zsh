@@ -2,10 +2,18 @@
 # Tab 补全
 # ==============================================================================
 # zsh-completions 提供大量命令的参数补全（brew install zsh-completions）。
-# 目录不存在时跳过，不影响后面 compinit。
-if [[ -n "$_dotgraft_brew_prefix" ]] && [[ -d "$_dotgraft_brew_prefix/share/zsh-completions" ]]; then
-  fpath=("$_dotgraft_brew_prefix/share/zsh-completions" $fpath)
-fi
+# Homebrew 安装的工具（gh、chezmoi、kubectl 等）还会把补全放到
+# share/zsh/site-functions。两个目录都存在时都加入 fpath。
+# typeset -U 避免重复 source 时堆积重复路径。
+typeset -U fpath
+for _dotgraft_more_fpath in \
+  "$_dotgraft_brew_prefix/share/zsh-completions" \
+  "$_dotgraft_brew_prefix/share/zsh/site-functions"; do
+  if [[ -n "$_dotgraft_brew_prefix" ]] && [[ -d "$_dotgraft_more_fpath" ]]; then
+    fpath=("$_dotgraft_more_fpath" $fpath)
+  fi
+done
+unset _dotgraft_more_fpath
 
 # compinit 必须在 fpath 改完之后跑，否则新加的目录不会被扫描。
 #
@@ -21,3 +29,6 @@ autoload -Uz compinit && compinit -u
 zstyle ':completion:*' menu select
 # 补全大小写不敏感：输入 `cd down` 也能补出 `Downloads`
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+
+# 补全完成后把光标移到词尾；允许在单词中间开始补全。
+setopt ALWAYS_TO_END COMPLETE_IN_WORD

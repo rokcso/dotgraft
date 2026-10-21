@@ -63,7 +63,7 @@
 | 顺序 | 文件 | 内容 | 为什么在这个位置 |
 |---|---|---|---|
 | 10 | `10-history.zsh` | HISTFILE / HISTSIZE / setopt | 最早，后面的插件依赖历史 |
-| 20 | `20-completion.zsh` | fpath + `compinit` + zstyle | 必须在补全插件之前 |
+| 20 | `20-completion.zsh` | fpath + `compinit` + zstyle + 补全选项 | 必须在补全插件之前 |
 | 30 | `30-prompt.zsh` | Starship init | 要早于 autosuggestions |
 | 40 | `40-tools.zsh.tmpl` | fzf、zoxide | 依赖补全系统已就绪 |
 | 50 | `50-functions.zsh.tmpl` | `y`（yazi 包装） | 独立函数 |

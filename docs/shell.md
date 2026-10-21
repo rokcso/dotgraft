@@ -61,11 +61,23 @@ Dotgraft 把接受键改成了 `Ctrl+F`：默认的 `→` 在行中间会被 `fo
 
 扩展几百个命令的参数补全（git、docker、brew、kubectl 等）。
 
-它在 `20-completion.zsh` 里做两件事：把目录加进 `fpath`，然后跑 `compinit`。
+它在 `20-completion.zsh` 里把两个目录加进 `fpath`：
+
+```text
+$HOMEBREW_PREFIX/share/zsh-completions
+$HOMEBREW_PREFIX/share/zsh/site-functions
+```
+
+前者来自 `zsh-completions`；后者是 Homebrew 工具（`gh`、`chezmoi`、`kubectl` 等）安装补全的位置。加完再跑 `compinit`。
 
 注意这里会**再跑一次** `compinit`，即使是重复调用。原因是 `~/.zshrc` 里可能有别的工具（比如 OpenSpec）在本区块之前就调用过，它们不知道我们后面又加了 `fpath`。重复调用的代价是几十毫秒，换来新目录真被扫描。
 
 配合两行 zstyle：`menu select` 让 Tab 候选可上下移动，`matcher-list` 让补全大小写不敏感（`cd down` 能补出 `Downloads`）。
+
+另外启用了两个补全选项：
+
+- `ALWAYS_TO_END`：补全后把光标移到词尾
+- `COMPLETE_IN_WORD`：允许在单词中间开始补全
 
 `compinit -u` 里的 `-u` 是必要的：Homebrew 目录大多 root 所有，zsh 默认会拒绝使用这种「不安全」目录。
 

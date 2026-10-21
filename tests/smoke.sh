@@ -355,6 +355,9 @@ shortcut_out="$(HOME="$shortcuts" zsh -i -c '
   echo "dotg_comp=${_comps[dotg]:-}"
   echo "dotgraft_comp=${_comps[dotgraft]:-}"
   echo "has_fn=$(( $+functions[_dotgraft] ))"
+  echo "site_functions=$(print -l $fpath | grep -c 'share/zsh/site-functions')"
+  echo "always_to_end=$([[ -o always_to_end ]] && echo 1 || echo 0)"
+  echo "complete_in_word=$([[ -o complete_in_word ]] && echo 1 || echo 0)"
 ' 2> /dev/null)"
 
 if command -v dotg > /dev/null 2>&1; then
@@ -380,6 +383,16 @@ if [[ "$shortcut_out" == *"has_fn=1"* ]]; then
   ok "_dotgraft 补全函数存在"
 else
   bad "_dotgraft 补全函数不存在"
+fi
+if [[ "$shortcut_out" =~ site_functions=[1-9] ]]; then
+  ok "Homebrew site-functions 已加入 fpath"
+else
+  bad "Homebrew site-functions 没有加入 fpath"
+fi
+if [[ "$shortcut_out" == *"always_to_end=1"* ]] && [[ "$shortcut_out" == *"complete_in_word=1"* ]]; then
+  ok "补全选项已启用"
+else
+  bad "补全选项没有启用"
 fi
 
 # ------------------------------------------------------------------------------
