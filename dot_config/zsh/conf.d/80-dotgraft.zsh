@@ -1,14 +1,14 @@
 # ==============================================================================
 # dotgraft 短别名与补全
 # ==============================================================================
-# 正式命令仍然是 dotgraft；dg 只是交互式别名。
-# 如果系统里已经有 dg（命令、别名或函数），保留用户的，不覆盖。
-if ! whence -w dg > /dev/null 2>&1; then
-  alias dg='dotgraft'
-  _dotgraft_dg_alias=1
+# 正式命令仍然是 dotgraft；dotg 只是交互式别名。
+# 如果系统里已经有 dotg（命令、别名或函数），保留用户的，不覆盖。
+if ! whence -w dotg > /dev/null 2>&1; then
+  alias dotg='dotgraft'
+  _dotgraft_dotg_alias=1
 fi
 
-# 子命令补全：dotgraft <Tab> / dg <Tab>
+# 子命令补全：dotgraft <Tab> / dotg <Tab>
 _dotgraft() {
   local -a commands
   commands=(
@@ -49,9 +49,9 @@ _dotgraft() {
 
 if (( $+functions[compdef] )); then
   compdef _dotgraft dotgraft
-  if [[ -n "${_dotgraft_dg_alias:-}" ]]; then
-    compdef _dotgraft dg
+  if [[ -n "${_dotgraft_dotg_alias:-}" ]]; then
+    compdef _dotgraft dotg
   fi
 fi
 
-unset _dotgraft_dg_alias
+unset _dotgraft_dotg_alias

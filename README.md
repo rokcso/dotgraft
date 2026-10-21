@@ -82,22 +82,22 @@ dotgraft reconfigure
 
 直接运行 `chezmoi` 会使用你自己的默认 source/config，不会看到 Dotgraft；需要底层命令时用 `dotgraft chezmoi ...`。
 
-如果系统里没有现成的 `dg` 命令，安装后会自动得到一个短别名：
+如果系统里没有现成的 `dotg` 命令，安装后会自动得到一个短别名：
 
 ```bash
-dg status
-dg update
-dg deps
+dotg status
+dotg update
+dotg deps
 ```
 
-`dotgraft` 和 `dg` 都支持子命令补全：
+`dotgraft` 和 `dotg` 都支持子命令补全：
 
 ```bash
 dotgraft <Tab>
-dg <Tab>
+dotg <Tab>
 ```
 
-如果 `dg` 已经被别的命令占用，Dotgraft 不会覆盖它，继续使用完整的 `dotgraft`。
+如果 `dotg` 已经被别的命令占用，Dotgraft 不会覆盖它，继续使用完整的 `dotgraft`。
 
 ## 会改动哪些文件
 

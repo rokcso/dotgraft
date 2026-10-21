@@ -345,7 +345,7 @@ fi
 # ------------------------------------------------------------------------------
 # 短别名与补全
 # ------------------------------------------------------------------------------
-step "场景: dg 别名与补全"
+step "场景: dotg 别名与补全"
 shortcuts="$TMP/shortcuts"
 mkdir -p "$shortcuts"
 chezmoi_at "$shortcuts" init --promptMultichoice "$Q_TOOLS=" \
@@ -353,19 +353,19 @@ chezmoi_at "$shortcuts" init --promptMultichoice "$Q_TOOLS=" \
 chezmoi_at "$shortcuts" apply --exclude=scripts > /dev/null
 
 shortcut_out="$(HOME="$shortcuts" zsh -i -c '
-  echo "dg_whence=$(whence -w dg 2>/dev/null)"
-  echo "dg_comp=${_comps[dg]:-}"
+  echo "dotg_whence=$(whence -w dotg 2>/dev/null)"
+  echo "dotg_comp=${_comps[dotg]:-}"
   echo "dotgraft_comp=${_comps[dotgraft]:-}"
   echo "has_fn=$(( $+functions[_dotgraft] ))"
 ' 2> /dev/null)"
 
-if command -v dg > /dev/null 2>&1; then
-  ok "系统已有 dg 命令，跳过别名覆盖断言"
+if command -v dotg > /dev/null 2>&1; then
+  ok "系统已有 dotg 命令，跳过别名覆盖断言"
 else
-  if [[ "$shortcut_out" == *"dg_whence=dg: alias"* ]]; then
-    ok "dg 是 dotgraft 的别名"
+  if [[ "$shortcut_out" == *"dotg_whence=dotg: alias"* ]]; then
+    ok "dotg 是 dotgraft 的别名"
   else
-    bad "dg 别名没有生效"
+    bad "dotg 别名没有生效"
   fi
 fi
 if [[ "$shortcut_out" == *"dotgraft_comp=_dotgraft"* ]]; then
@@ -373,10 +373,10 @@ if [[ "$shortcut_out" == *"dotgraft_comp=_dotgraft"* ]]; then
 else
   bad "dotgraft 补全没有注册"
 fi
-if [[ "$shortcut_out" == *"dg_comp=_dotgraft"* ]]; then
-  ok "dg 补全已注册"
+if [[ "$shortcut_out" == *"dotg_comp=_dotgraft"* ]]; then
+  ok "dotg 补全已注册"
 else
-  bad "dg 补全没有注册"
+  bad "dotg 补全没有注册"
 fi
 if [[ "$shortcut_out" == *"has_fn=1"* ]]; then
   ok "_dotgraft 补全函数存在"
