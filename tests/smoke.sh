@@ -554,6 +554,18 @@ else
   ok "deps 把 brew 失败传播成非零退出"
 fi
 
+doctor_out=""
+if doctor_out="$(dotgraft_at "$cli4" doctor 2>&1)"; then
+  ok "dotgraft doctor 正常退出"
+else
+  bad "dotgraft doctor 非零退出"
+fi
+if [[ "$doctor_out" == *"Dotgraft source"* ]] && [[ "$doctor_out" == *"Dotgraft config"* ]] && [[ "$doctor_out" == *"managed files"* ]]; then
+  ok "dotgraft doctor 输出 Dotgraft 专用检查"
+else
+  bad "dotgraft doctor 缺少 Dotgraft 专用检查"
+fi
+
 # ------------------------------------------------------------------------------
 # 幂等：同一个 HOME 连跑两次 apply，内容不应变化
 # ------------------------------------------------------------------------------

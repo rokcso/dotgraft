@@ -253,11 +253,24 @@ dotgraft chezmoi purge --force
 
 `dotgraft update` 先 `git pull`，再检查 `.chezmoi.toml.tmpl` 是否变化。变化时会重新运行 `chezmoi init`，避免上游新增 data key 后模板渲染失败。按提示回答即可。
 
+## `dotgraft doctor` 里的 age / 1Password / Bitwarden 是什么
+
+`dotgraft doctor` 现在只检查 Dotgraft 自己的环境：macOS、Shell、Homebrew、chezmoi、独立 source/config、`.zshrc` 区块、受管文件、选配工具、Starship、Ghostty、字体和 Ghostty 覆盖文件。
+
+如果你要看 chezmoi 的完整诊断（包括 age、1Password、Bitwarden、pass、vault 等可选集成），用：
+
+```bash
+dotgraft chezmoi doctor
+```
+
+那些 `info` 行只表示“没有配置某个可选集成”，不是 Dotgraft 安装失败。
+
 ## 需要更多信息
 
 ```bash
 dotgraft status        # 选配、差异、版本
-dotgraft doctor        # chezmoi 的环境自检
+dotgraft doctor        # Dotgraft 专用环境自检
+dotgraft chezmoi doctor # 完整的 chezmoi 环境自检
 ghostty +show-config   # Ghostty 合并后的最终配置
 ghostty +version
 ```

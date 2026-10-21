@@ -77,7 +77,7 @@ dotgraft reconfigure
 | `dotgraft edit <文件>` | 编辑受管文件的仓库副本 |
 | `dotgraft cd` | 进入 Dotgraft 的 chezmoi 源目录 |
 | `dotgraft chezmoi <args>` | 在 Dotgraft 的 source/config 上执行 chezmoi 子命令 |
-| `dotgraft doctor` | 环境自检 |
+| `dotgraft doctor` | Dotgraft 专用环境自检；完整 chezmoi 诊断用 `dotgraft chezmoi doctor` |
 | `dotgraft uninstall` | 卸载 |
 
 直接运行 `chezmoi` 会使用你自己的默认 source/config，不会看到 Dotgraft；需要底层命令时用 `dotgraft chezmoi ...`。

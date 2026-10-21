@@ -296,9 +296,151 @@ cmd_cd() {
   chezmoi_dg cd
 }
 
+DOCTOR_FAILED=0
+
+doctor_row() {
+  local state="$1" name="$2" message="$3"
+  printf '  [%-4s] %-18s %s\n' "$state" "$name" "$message"
+  if [[ "$state" == "fail" ]]; then
+    DOCTOR_FAILED=1
+  fi
+  return 0
+}
+
 cmd_doctor() {
   require_chezmoi
-  chezmoi_dg doctor
+  DOCTOR_FAILED=0
+  step "Dotgraft 环境自检"
+
+  local macos
+  macos="$(sw_vers -productVersion 2> /dev/null || printf 'unknown')"
+  doctor_row ok "macOS" "$macos"
+
+  local shell_path="${SHELL:-unknown}"
+  if [[ "$shell_path" == *zsh ]]; then
+    doctor_row ok "Shell" "$shell_path"
+  else
+    doctor_row warn "Shell" "$shell_path（Dotgraft 假设 zsh）"
+  fi
+
+  if command -v brew > /dev/null 2>&1; then
+    doctor_row ok "Homebrew" "$(brew --version 2> /dev/null | head -1) ($(brew --prefix 2> /dev/null))"
+  else
+    doctor_row fail "Homebrew" "未找到"
+  fi
+
+  if command -v chezmoi > /dev/null 2>&1; then
+    doctor_row ok "chezmoi" "$(chezmoi --version 2> /dev/null | head -1)"
+  else
+    doctor_row fail "chezmoi" "未找到"
+  fi
+
+  if is_dotgraft_source; then
+    doctor_row ok "Dotgraft source" "$DOTGRAFT_SOURCE"
+  else
+    doctor_row fail "Dotgraft source" "不是有效的 Dotgraft 仓库：$DOTGRAFT_SOURCE"
+  fi
+
+  if [[ -f "$DOTGRAFT_CONFIG" ]]; then
+    doctor_row ok "Dotgraft config" "$DOTGRAFT_CONFIG"
+  else
+    doctor_row fail "Dotgraft config" "不存在：$DOTGRAFT_CONFIG"
+  fi
+
+  if [[ -f "$HOME/.zshrc" ]]; then
+    if ! zshrc_block_ok; then
+      doctor_row fail ".zshrc" "Dotgraft 区块不完整"
+    elif grep -q '^# >>> dotgraft >>>$' "$HOME/.zshrc"; then
+      doctor_row ok ".zshrc" "Dotgraft 区块存在"
+    else
+      doctor_row fail ".zshrc" "缺少 Dotgraft 区块"
+    fi
+  else
+    doctor_row fail ".zshrc" "不存在"
+  fi
+
+  if [[ -f "$HOME/.config/zsh/init.zsh" ]]; then
+    doctor_row ok "zsh config" "$HOME/.config/zsh/init.zsh"
+  else
+    doctor_row fail "zsh config" "缺少 init.zsh"
+  fi
+
+  if is_dotgraft_source && [[ -f "$DOTGRAFT_CONFIG" ]]; then
+    local status_out
+    status_out="$(chezmoi_dg status 2> /dev/null || true)"
+    if [[ -z "$status_out" ]]; then
+      doctor_row ok "managed files" "无差异"
+    else
+      doctor_row warn "managed files" "有未应用差异，运行 dotgraft diff 查看"
+    fi
+
+    local tools missing tool
+    tools="$(chezmoi_dg execute-template '{{ range .tools }}{{ . }} {{ end }}' 2> /dev/null || true)"
+    tools="${tools% }"
+    if [[ -z "$tools" ]]; then
+      doctor_row ok "selected tools" "未选择"
+    else
+      missing=""
+      for tool in $tools; do
+        command -v "$tool" > /dev/null 2>&1 || missing="$missing $tool"
+      done
+      if [[ -z "$missing" ]]; then
+        doctor_row ok "selected tools" "$tools"
+      else
+        doctor_row warn "selected tools" "缺少:${missing}（运行 dotgraft deps）"
+      fi
+    fi
+  else
+    doctor_row warn "managed files" "跳过：source/config 不完整"
+    doctor_row warn "selected tools" "跳过：source/config 不完整"
+  fi
+
+  if command -v starship > /dev/null 2>&1 && [[ -f "$HOME/.config/starship.toml" ]]; then
+    doctor_row ok "Starship" "$(starship --version 2> /dev/null | head -1)"
+  else
+    doctor_row warn "Starship" "命令或 ~/.config/starship.toml 缺失"
+  fi
+
+  if command -v ghostty > /dev/null 2>&1; then
+    doctor_row ok "Ghostty" "$(ghostty --version 2> /dev/null | head -1)"
+  else
+    doctor_row fail "Ghostty" "未找到"
+  fi
+
+  if [[ -f "$HOME/.config/ghostty/config" ]]; then
+    doctor_row ok "Ghostty config" "$HOME/.config/ghostty/config"
+  else
+    doctor_row fail "Ghostty config" "不存在"
+  fi
+
+  local ghostty_override="$HOME/Library/Application Support/com.mitchellh.ghostty/config"
+  if [[ -s "$ghostty_override" ]]; then
+    doctor_row warn "Ghostty override" "存在，可能覆盖主题：$ghostty_override"
+  else
+    doctor_row ok "Ghostty override" "未发现"
+  fi
+
+  if [[ -n "$(find "$HOME/Library/Fonts" /Library/Fonts -maxdepth 1 -iname '*maple*cn*' -print -quit 2> /dev/null)" ]]; then
+    doctor_row ok "Maple Mono CN" "已安装"
+  else
+    doctor_row warn "Maple Mono CN" "未找到，图标/中文可能回退"
+  fi
+
+  if git -C "$DOTGRAFT_SOURCE" rev-parse --git-dir > /dev/null 2>&1; then
+    if [[ -z "$(git -C "$DOTGRAFT_SOURCE" status --porcelain 2> /dev/null)" ]]; then
+      doctor_row ok "source git" "clean"
+    else
+      doctor_row warn "source git" "有本地改动"
+    fi
+  fi
+
+  printf '\n'
+  if [[ "$DOCTOR_FAILED" -eq 0 ]]; then
+    note "检查完成：没有发现阻塞性问题。"
+  else
+    warn "检查完成：存在需要修复的问题。"
+  fi
+  return "$DOCTOR_FAILED"
 }
 
 # ==============================================================================

@@ -203,7 +203,7 @@ dotgraft deps                    # 安装/修复依赖
 dotgraft update                  # 拉上游、预览、应用、修依赖
 dotgraft chezmoi edit --apply ~/.zshrc   # 在 Dotgraft source 上编辑并立即生效
 dotgraft cd                      # 进源目录，用 git 正常提交
-dotgraft doctor                  # 环境自检
+dotgraft doctor                  # Dotgraft 专用环境自检
 ```
 
 ## 验证清单
