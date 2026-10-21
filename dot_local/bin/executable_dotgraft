@@ -6,7 +6,9 @@
 # 首次安装走 bootstrap.sh，不是这个脚本。
 # ==============================================================================
 
-set -eu
+set -euo pipefail
+
+APPLY_CANCELED=0
 
 step() { printf '\n==> %s\n' "$*"; }
 note() { printf '    %s\n' "$*"; }
@@ -27,11 +29,119 @@ require_chezmoi() {
   command -v chezmoi > /dev/null 2>&1 || die "找不到 chezmoi。重新安装请跑 bootstrap.sh"
 }
 
+source_path() {
+  chezmoi source-path 2> /dev/null
+}
+
+# 判断当前 chezmoi source 是否真的是 Dotgraft。
+#
+# 这不是洁癖：uninstall / update 会写入或删除 source 里的内容，
+# 如果用户把 dotgraft 命令指向了另一个 dotfiles 仓库，后果很严重。
+# 新版本 source 有 .dotgraft-source 标记；旧版本用文件内容兜底。
+is_dotgraft_source() {
+  local src
+  src="$(source_path)" || return 1
+  [[ -n "$src" && -d "$src" ]] || return 1
+  [[ -f "$src/.dotgraft-source" ]] && return 0
+  [[ -f "$src/.chezmoi.toml.tmpl" ]] &&
+    [[ -f "$src/dot_local/bin/executable_dotgraft" ]] &&
+    grep -q 'Dotgraft' "$src/.chezmoi.toml.tmpl"
+}
+
+require_dotgraft_source() {
+  require_chezmoi
+  is_dotgraft_source || die "当前 chezmoi 源目录不是 Dotgraft：$(source_path || printf '未知')。为安全起见，已停止。"
+}
+
+hash_file() {
+  [[ -f "$1" ]] || return 0
+  shasum -a 256 "$1" | awk '{print $1}'
+}
+
+# uninstall 只允许删除这个白名单内的目标路径。
+# 新增受管文件时记得同步这里，否则 tests/smoke.sh 会失败。
+is_allowed_target() {
+  local rel="${1#"${HOME%/}"/}"
+  case "$rel" in
+    .config/zsh/init.zsh | \
+      .config/zsh/conf.d/10-history.zsh | \
+      .config/zsh/conf.d/20-completion.zsh | \
+      .config/zsh/conf.d/30-prompt.zsh | \
+      .config/zsh/conf.d/40-tools.zsh | \
+      .config/zsh/conf.d/50-functions.zsh | \
+      .config/zsh/conf.d/60-plugins.zsh | \
+      .config/zsh/conf.d/70-aliases.zsh | \
+      .config/zsh/conf.d/90-local.zsh | \
+      .config/zsh/conf.d/99-highlighting.zsh | \
+      .config/ghostty/config | \
+      .config/starship.toml | \
+      .local/bin/dotgraft | \
+      .zshrc)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# 检查 ~/.zshrc 里的 dotgraft 区块是否成对。
+# 只有开始标记、没有结束标记时，awk 会一路删到文件末尾；
+# 与其静默丢数据，不如在卸载开始前直接拒绝。
+zshrc_block_ok() {
+  local file="$HOME/.zshrc" line state=0
+  [[ -f "$file" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    case "$line" in
+      '# >>> dotgraft >>>')
+        [[ "$state" -eq 0 ]] || return 1
+        state=1
+        ;;
+      '# <<< dotgraft <<<')
+        [[ "$state" -eq 1 ]] || return 1
+        state=0
+        ;;
+      *'>>> dotgraft >>>'* | *'<<< dotgraft <<<'*)
+        # 行尾空格、CRLF 等变体：strip 脚本按精确行匹配，不能安全处理
+        return 1
+        ;;
+    esac
+  done < "$file"
+  [[ "$state" -eq 0 ]]
+}
+
+backup_file() {
+  local src="$1" dest_root="$2" rel
+  [[ -e "$src" ]] || return 0
+  rel="${src#"${HOME%/}"/}"
+  mkdir -p "$dest_root/$(dirname "$rel")"
+  if ! cp -p "$src" "$dest_root/$rel" 2> /dev/null; then
+    cp "$src" "$dest_root/$rel" || {
+      warn "无法备份：$src"
+      return 1
+    }
+  fi
+}
+
+# 只有当 source 是干净的 Dotgraft 克隆时才 purge。
+# 有未提交改动、未推送提交、或 remote 不像 dotgraft 时一律保留，
+# 避免把用户加在同一 source 里的私有 dotfiles 一起删掉。
+can_purge_source() {
+  local src ahead
+  src="$(source_path)" || return 1
+  is_dotgraft_source || return 1
+  git -C "$src" rev-parse --git-dir > /dev/null 2>&1 || return 1
+  [[ -z "$(git -C "$src" status --porcelain 2> /dev/null)" ]] || return 1
+  ahead="$(git -C "$src" rev-list --count '@{u}..HEAD' 2> /dev/null)" || return 1
+  [[ "$ahead" == "0" ]] || return 1
+  git -C "$src" remote get-url origin 2> /dev/null | grep -qi 'dotgraft' || return 1
+}
+
 # ==============================================================================
 # status
 # ==============================================================================
 cmd_status() {
-  require_chezmoi
+  require_dotgraft_source
   step "配置状态"
   note "源目录: $(chezmoi source-path)"
   note "chezmoi: $(chezmoi --version | head -1)"
@@ -57,58 +167,113 @@ cmd_status() {
 # diff / apply
 # ==============================================================================
 cmd_diff() {
-  require_chezmoi
+  require_dotgraft_source
   local out
-  out="$(chezmoi diff --no-pager 2>&1 || true)"
+  out="$(chezmoi diff --no-pager --exclude=scripts 2>&1 || true)"
   if [[ -z "$out" ]]; then
-    note "没有待应用的改动。"
+    note "没有待应用的文件改动（依赖脚本不在此预览）。"
   else
     printf '%s\n' "$out"
   fi
 }
 
 cmd_apply() {
-  require_chezmoi
-  cmd_diff
-  printf '\n'
+  require_dotgraft_source
+  local out
+  out="$(chezmoi diff --no-pager --exclude=scripts 2>&1 || true)"
+  if [[ -z "$out" ]]; then
+    note "没有待应用的文件改动。"
+    # 仍然跑一次 apply：文件没变不代表 run_onchange 脚本没变，
+    # 例如只改了 Brewfile 时，依赖安装必须有机会执行。
+    chezmoi apply
+    note "完成。"
+    return 0
+  fi
+
+  printf '%s\n\n' "$out"
   confirm "应用这些改动？" || {
     printf '    已取消。\n'
-    exit 0
+    APPLY_CANCELED=1
+    return 0
   }
   chezmoi apply
   note "完成。开新终端窗口或 exec zsh 让 shell 配置生效。"
 }
 
 # ==============================================================================
+# deps
+# ==============================================================================
+# run_onchange 只在脚本内容变化时执行，不能修“包被删了”或“上次装失败”。
+# 这个命令无条件重跑同一份渲染后的安装脚本，作为收敛入口。
+cmd_deps() {
+  require_dotgraft_source
+  local src tmpl
+  src="$(source_path)"
+  tmpl="$src/run_onchange_install-packages.sh.tmpl"
+  [[ -f "$tmpl" ]] || die "找不到依赖安装模板：$tmpl"
+
+  step "安装 / 修复依赖"
+  chezmoi execute-template < "$tmpl" | sh
+  note "依赖完成。"
+}
+
+# ==============================================================================
 # update
 # ==============================================================================
 cmd_update() {
-  require_chezmoi
+  require_dotgraft_source
+  local src before after
+  src="$(source_path)"
+  git -C "$src" rev-parse --git-dir > /dev/null 2>&1 || die "源目录不是 git 仓库，无法更新：$src"
+
   step "更新到上游最新"
-  # chezmoi update = git pull --rebase + apply
-  # apply 过程中如果 Brewfile 或选配变了，run_onchange 脚本会重跑依赖安装
-  chezmoi update
-  note "完成。"
+  before="$(hash_file "$src/.chezmoi.toml.tmpl")"
+  # 不用 chezmoi update：它会在模板缺新 data key 时直接 apply 失败。
+  # 先 pull，再判断选配模板是否变化，变化就先重新 init。
+  git -C "$src" pull --rebase
+  after="$(hash_file "$src/.chezmoi.toml.tmpl")"
+
+  if [[ "$before" != "$after" ]]; then
+    step "选配模板有更新，重新询问配置"
+    chezmoi init
+  fi
+
+  APPLY_CANCELED=0
+  cmd_apply
+  if [[ "$APPLY_CANCELED" -eq 1 ]]; then
+    note "已取消，未更新依赖。"
+    return 0
+  fi
+
+  cmd_deps
 }
 
 # ==============================================================================
 # reconfigure
 # ==============================================================================
 cmd_reconfigure() {
-  require_chezmoi
+  require_dotgraft_source
   step "重新选择组件"
-  note "（会重新问那三个问题，答案只覆盖本机配置）"
+  note "（会重新问那几个问题，答案只覆盖本机配置）"
   printf '\n'
   chezmoi init
   printf '\n'
+
+  APPLY_CANCELED=0
   cmd_apply
+  if [[ "$APPLY_CANCELED" -eq 1 ]]; then
+    note "已取消，未更新依赖。"
+    return 0
+  fi
+
+  cmd_deps
 }
 
 # ==============================================================================
 # edit / cd / doctor
 # ==============================================================================
 cmd_edit() {
-  require_chezmoi
+  require_dotgraft_source
   if [[ $# -eq 0 ]]; then
     note "用法: dotgraft edit <目标文件>，例如："
     note "  dotgraft edit ~/.config/ghostty/config"
@@ -118,7 +283,7 @@ cmd_edit() {
 }
 
 cmd_cd() {
-  require_chezmoi
+  require_dotgraft_source
   chezmoi cd
 }
 
@@ -156,17 +321,42 @@ strip_zshrc_block() {
 }
 
 cmd_uninstall() {
-  require_chezmoi
+  require_dotgraft_source
   step "卸载 Dotgraft"
+
+  local src
+  src="$(source_path)"
+
+  # 先做完全部只读检查，再动任何文件。
+  zshrc_block_ok || die "$HOME/.zshrc 里的 dotgraft 区块不完整（有开始标记但没有结束标记，或反过来）。为避免误删，已停止。请先手动修复该区块。"
+
+  local managed_list f unexpected=0
+  if ! managed_list="$(chezmoi managed --include=files --path-style=absolute 2> /dev/null)"; then
+    die "无法读取 chezmoi 受管文件列表。请先运行 dotgraft doctor 检查环境。"
+  fi
+
+  while IFS= read -r f; do
+    [[ -n "$f" ]] || continue
+    if ! is_allowed_target "$f"; then
+      warn "检测到非 Dotgraft 受管文件：$f"
+      unexpected=1
+    fi
+  done <<< "$managed_list"
+
+  if [[ "$unexpected" -ne 0 ]]; then
+    die "当前 chezmoi 源目录里混有 Dotgraft 之外的受管文件。为避免误删，已停止。请先备份并手动处理上面列出的文件，或考虑换一个独立的 chezmoi source。"
+  fi
 
   cat << 'WARN'
     将会：
+      - 备份所有受管文件、~/.zshrc 和 chezmoi 配置
       - 删除 ~/.config/zsh/、~/.config/ghostty/config、~/.config/starship.toml
       - 删除 ~/.local/bin/dotgraft
       - 从 ~/.zshrc 移除 dotgraft 区块（其余内容保留）
-      - 清理 chezmoi 自己的记录
+      - 如果源目录是干净的 Dotgraft 克隆，清理 chezmoi 状态
 
     不会：
+      - 删除源目录里的私有文件/未提交改动（检测到就跳过清理）
       - 卸载任何 Homebrew 包（想删自己跑 brew uninstall）
       - 改动 ~/.zprofile、~/.zshenv
 WARN
@@ -180,41 +370,60 @@ WARN
   local stamp backup
   stamp="$(date +%Y%m%d_%H%M%S)"
   backup="$HOME/.config-backup/$stamp"
-  mkdir -p "$backup"
+  mkdir -p "$backup/files"
 
-  # 1. 备份用户自己的机器专属配置
-  local local_rc="$HOME/.config/zsh/conf.d/90-local.zsh"
-  if [[ -s "$local_rc" ]]; then
-    cp "$local_rc" "$backup/90-local.zsh"
-    note "已备份 90-local.zsh"
+  # 1. 备份所有受管文件（包含 90-local 和 .zshrc）
+  while IFS= read -r f; do
+    [[ -n "$f" ]] || continue
+    backup_file "$f" "$backup/files" || die "备份失败，已停止卸载：$f"
+  done <<< "$managed_list"
+
+  # 2. 备份 chezmoi 的选配答案
+  if [[ -f "$HOME/.config/chezmoi/chezmoi.toml" ]]; then
+    cp -p "$HOME/.config/chezmoi/chezmoi.toml" "$backup/chezmoi.toml" ||
+      warn "无法备份 chezmoi.toml"
   fi
 
-  # 2. 备份 ~/.zshrc
-  [[ -f "$HOME/.zshrc" ]] && cp "$HOME/.zshrc" "$backup/zshrc"
+  # 3. 恢复 bootstrap 移开的 Ghostty 覆盖配置
+  local ghostty_override="$HOME/Library/Application Support/com.mitchellh.ghostty/config"
+  if [[ -e "$ghostty_override.before-dotgraft" ]]; then
+    if [[ -e "$ghostty_override" ]]; then
+      backup_file "$ghostty_override" "$backup/files" ||
+        warn "无法备份当前 Ghostty 覆盖配置"
+    fi
+    mv "$ghostty_override.before-dotgraft" "$ghostty_override"
+    note "已恢复 Ghostty 覆盖配置"
+  fi
 
-  # 3. 删除受管文件（.zshrc 单独处理，不能整份删）
-  local removed=0 f
+  # 4. 删除受管文件（.zshrc 单独处理，不能整份删）
+  local removed=0
   while IFS= read -r f; do
-    [[ -z "$f" ]] && continue
-    [[ "$f" == "$HOME/.zshrc" ]] && continue
+    [[ -n "$f" ]] || continue
+    [[ "$f" == "${HOME%/}/.zshrc" ]] && continue
     [[ -e "$f" ]] || continue
     rm -f "$f" && removed=$((removed + 1))
-  done < <(chezmoi managed --include=files --path-style=absolute 2> /dev/null || true)
+  done <<< "$managed_list"
   note "已删除 $removed 个文件"
 
-  # 4. 移除 ~/.zshrc 里的区块
+  # 5. 移除 ~/.zshrc 里的区块
   strip_zshrc_block
   note "已清理 ~/.zshrc 中的 dotgraft 区块"
 
-  # 5. 清理空目录（用户自己的文件在里面时 rmdir 会失败，正合适）
+  # 6. 清理空目录（用户自己的文件在里面时 rmdir 会失败，正合适）
   rmdir "$HOME/.config/zsh/conf.d" 2> /dev/null || true
   rmdir "$HOME/.config/zsh" 2> /dev/null || true
   rmdir "$HOME/.config/ghostty" 2> /dev/null || true
   rmdir "$HOME/.local/bin" 2> /dev/null || true
 
-  # 6. 清理 chezmoi 自身
-  chezmoi purge --force
-  note "已清理 chezmoi 源码、配置和状态"
+  # 7. 只在完全安全时清理 chezmoi 自身
+  if can_purge_source; then
+    chezmoi purge --force
+    note "已清理 chezmoi 源码、配置和状态"
+  else
+    warn "源目录未清理：$src"
+    note "它可能包含你的私有文件或未提交改动。确认无误后可手动执行："
+    note "  chezmoi purge --force"
+  fi
 
   printf '\n'
   note "备份目录: $backup"
@@ -235,11 +444,12 @@ dotgraft —— 终端配置管理
   diff          预览将要发生的改动
   apply         预览并应用改动
   update        拉取上游更新并应用（含依赖）
+  deps          无条件安装/修复 Homebrew 依赖
   reconfigure   重新选择组件（工具 / 主题 / 毛玻璃）
   edit <文件>   编辑某个受管文件的仓库副本
   cd            进入 chezmoi 源目录
   doctor        检查环境
-  uninstall     卸载（保留 Homebrew 包）
+  uninstall     卸载（备份受管文件，保留 Homebrew 包）
 
 首次安装不走这里，用：
   bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/main/bootstrap.sh)
@@ -258,6 +468,7 @@ main() {
     diff) cmd_diff ;;
     apply) cmd_apply ;;
     update) cmd_update ;;
+    deps) cmd_deps ;;
     reconfigure) cmd_reconfigure ;;
     edit) cmd_edit "$@" ;;
     cd) cmd_cd ;;

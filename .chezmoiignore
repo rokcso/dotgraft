@@ -1,7 +1,10 @@
 # chezmoi 会把源目录里的一切映射到 $HOME。
 # 下面这些是仓库自身的文件，不是 dotfiles，必须排除。
 #
-# 新增顶层目录时记得同步这里，tests/smoke.sh 会验证它们没有进入 $HOME。
+# chezmoi 的 ignore 模式按目标路径匹配，不带路径分隔符的模式只命中
+# 目标根部的条目；例如 docs/ 不会误伤 ~/.config/foo/docs/。
+# 新增顶层目录时记得同步这里；tests/smoke.sh 会检查
+# `chezmoi managed` 里没有出现白名单之外的路径。
 README.md
 LICENSE
 Brewfile
@@ -9,6 +12,7 @@ bootstrap.sh
 docs/
 tests/
 .github/
+.dotgraft-source
 
 # 参考资料（如果以后在本地 clone 同类项目，放这里就不会被部署）
 refs/

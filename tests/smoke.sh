@@ -76,6 +76,33 @@ assert_contains() {
     bad "$(basename "$1") 缺 $2"
   fi
 }
+assert_dir() {
+  if [[ -d "$1" ]]; then ok "存在目录 $(basename "$1")"; else bad "缺少目录 $1"; fi
+}
+
+chezmoi_at() {
+  local home="$1"
+  shift
+  HOME="$home" chezmoi \
+    --source "$SRC" \
+    --destination "$home" \
+    --config "$home/chezmoi.toml" \
+    --persistent-state "$home/state.boltdb" \
+    "$@"
+}
+
+# 用默认 source 安装一份，专门测 dotgraft 命令本身
+setup_cli_home() {
+  local home="$1"
+  mkdir -p "$home/.local/share/chezmoi"
+  (cd "$REPO_DIR" && tar --exclude=.git --exclude=refs -cf - .) |
+    (cd "$home/.local/share/chezmoi" && tar -xf -)
+  HOME="$home" chezmoi init \
+    --promptMultichoice "$Q_TOOLS=fzf/zoxide" \
+    --promptChoice "$Q_THEME=Catppuccin Mocha" \
+    --promptBool "$Q_GLASS=true" > /dev/null
+  HOME="$home" chezmoi apply --exclude=scripts > /dev/null
+}
 
 # ------------------------------------------------------------------------------
 # 跑一个场景
@@ -167,6 +194,50 @@ SEED
     bad "dotgraft 没有可执行位"
   fi
 
+  # 渲染后的可选 zsh 片段和 .zshrc 必须是合法 zsh
+  local zf
+  for zf in "$conf_d/40-tools.zsh" "$conf_d/50-functions.zsh" "$conf_d/70-aliases.zsh"; do
+    [[ -e "$zf" ]] || continue
+    if zsh -n "$zf" 2> /dev/null; then
+      ok "zsh 语法通过 $(basename "$zf")"
+    else
+      bad "zsh 语法有误：$zf"
+    fi
+  done
+  if zsh -n "$localhome/.zshrc" 2> /dev/null; then
+    ok ".zshrc 是合法 zsh"
+  else
+    bad ".zshrc 语法有误"
+  fi
+
+  # 受管目标必须都在 dotgraft 白名单内，防止 .chezmoiignore 漏掉顶层文件
+  local managed rel unexpected=0
+  while IFS= read -r managed; do
+    [[ -n "$managed" ]] || continue
+    rel="${managed#"$localhome"/}"
+    case "$rel" in
+      .config/zsh/init.zsh | \
+        .config/zsh/conf.d/10-history.zsh | \
+        .config/zsh/conf.d/20-completion.zsh | \
+        .config/zsh/conf.d/30-prompt.zsh | \
+        .config/zsh/conf.d/40-tools.zsh | \
+        .config/zsh/conf.d/50-functions.zsh | \
+        .config/zsh/conf.d/60-plugins.zsh | \
+        .config/zsh/conf.d/70-aliases.zsh | \
+        .config/zsh/conf.d/90-local.zsh | \
+        .config/zsh/conf.d/99-highlighting.zsh | \
+        .config/ghostty/config | \
+        .config/starship.toml | \
+        .local/bin/dotgraft | \
+        .zshrc) ;;
+      *)
+        bad "出现白名单之外的受管文件：$rel"
+        unexpected=1
+        ;;
+    esac
+  done < <(chezmoi_at "$localhome" managed --include=files --path-style=absolute 2> /dev/null)
+  [[ "$unexpected" -eq 0 ]] && ok "受管文件都在白名单内"
+
   # 渲染后的依赖安装脚本必须是合法 sh
   HOME="$localhome" chezmoi \
     --source "$SRC" --config "$localhome/chezmoi.toml" \
@@ -219,6 +290,165 @@ if [[ -n "$GHOSTTY_BIN" ]]; then
 fi
 
 # ------------------------------------------------------------------------------
+# 重新选配：从全选改成全不选
+# ------------------------------------------------------------------------------
+step "场景: 重新选配会移除可选片段"
+reconf="$TMP/reconf"
+mkdir -p "$reconf"
+chezmoi_at "$reconf" init --promptMultichoice "$Q_TOOLS=fzf/zoxide/eza/bat/yazi" \
+  --promptChoice "$Q_THEME=Catppuccin Mocha" --promptBool "$Q_GLASS=true" > /dev/null
+chezmoi_at "$reconf" apply --exclude=scripts > /dev/null
+printf '# MY_LOCAL_SETTING\n' > "$reconf/.config/zsh/conf.d/90-local.zsh"
+chezmoi_at "$reconf" init --promptMultichoice "$Q_TOOLS=" \
+  --promptChoice "$Q_THEME=GitHub Dark" --promptBool "$Q_GLASS=false" > /dev/null
+chezmoi_at "$reconf" apply --exclude=scripts > /dev/null
+assert_no_file "$reconf/.config/zsh/conf.d/40-tools.zsh"
+assert_no_file "$reconf/.config/zsh/conf.d/50-functions.zsh"
+assert_no_file "$reconf/.config/zsh/conf.d/70-aliases.zsh"
+assert_contains "$reconf/.config/zsh/conf.d/90-local.zsh" "MY_LOCAL_SETTING"
+block_count="$(grep -c '^# >>> dotgraft >>>$' "$reconf/.zshrc" || true)"
+if [[ "$block_count" == "1" ]]; then
+  ok "重新选配后 .zshrc 仍只有一个 dotgraft 区块"
+else
+  bad "重新选配后 dotgraft 区块出现 $block_count 次"
+fi
+
+# ------------------------------------------------------------------------------
+# 卸载安全：非 Dotgraft 受管文件必须让卸载停下来
+# ------------------------------------------------------------------------------
+step "场景: uninstall 拒绝非 Dotgraft 受管文件"
+cli="$TMP/cli-unexpected"
+setup_cli_home "$cli"
+printf 'private\n' > "$cli/.local/share/chezmoi/dot_private"
+HOME="$cli" chezmoi apply --exclude=scripts > /dev/null
+if HOME="$cli" bash "$REPO_DIR/dot_local/bin/executable_dotgraft" uninstall <<< 'y' > /dev/null 2>&1; then
+  bad "uninstall 应该拒绝非 Dotgraft 受管文件"
+else
+  ok "uninstall 拒绝了非 Dotgraft 受管文件"
+fi
+assert_file "$cli/.private"
+assert_file "$cli/.config/ghostty/config"
+
+# ------------------------------------------------------------------------------
+# 卸载成功路径：备份、移除区块、恢复 Ghostty 覆盖文件
+# ------------------------------------------------------------------------------
+step "场景: uninstall 备份并清理 Dotgraft 文件"
+cli2="$TMP/cli-success"
+setup_cli_home "$cli2"
+ghostty_override_dir="$cli2/Library/Application Support/com.mitchellh.ghostty"
+mkdir -p "$ghostty_override_dir"
+printf 'theme = Original\n' > "$ghostty_override_dir/config.before-dotgraft"
+if HOME="$cli2" bash "$REPO_DIR/dot_local/bin/executable_dotgraft" uninstall <<< 'y' > /dev/null 2>&1; then
+  ok "uninstall 正常退出"
+else
+  bad "uninstall 非零退出"
+fi
+assert_no_file "$cli2/.config/ghostty/config"
+assert_no_file "$cli2/.config/starship.toml"
+assert_no_file "$cli2/.local/bin/dotgraft"
+if grep -q '^# >>> dotgraft >>>$' "$cli2/.zshrc" 2> /dev/null; then
+  bad "uninstall 后 .zshrc 仍残留 dotgraft 区块"
+else
+  ok "uninstall 后 .zshrc 区块已移除"
+fi
+assert_contains "$ghostty_override_dir/config" "theme = Original"
+if find "$cli2/.config-backup" -path '*/files/.config/zsh/conf.d/90-local.zsh' -type f | grep -q .; then
+  ok "90-local.zsh 已备份"
+else
+  bad "90-local.zsh 没有备份"
+fi
+assert_dir "$cli2/.local/share/chezmoi"
+
+# ------------------------------------------------------------------------------
+# 卸载安全：.zshrc 区块不完整时不能动任何东西
+# ------------------------------------------------------------------------------
+step "场景: .zshrc 区块不完整时拒绝卸载"
+cli3="$TMP/cli-malformed"
+setup_cli_home "$cli3"
+cat > "$cli3/.zshrc" << 'EOF'
+export KEEP=1
+# >>> dotgraft >>>
+source "$HOME/.config/zsh/init.zsh"
+EOF
+if HOME="$cli3" bash "$REPO_DIR/dot_local/bin/executable_dotgraft" uninstall <<< 'y' > /dev/null 2>&1; then
+  bad "区块不完整时 uninstall 应该拒绝执行"
+else
+  ok "区块不完整时 uninstall 拒绝执行"
+fi
+assert_contains "$cli3/.zshrc" "KEEP=1"
+assert_file "$cli3/.config/zsh/init.zsh"
+assert_file "$cli3/.config/ghostty/config"
+
+cat > "$cli3/.zshrc" << 'EOF'
+# <<< dotgraft <<<
+export KEEP_ORDER=1
+# >>> dotgraft >>>
+EOF
+if HOME="$cli3" bash "$REPO_DIR/dot_local/bin/executable_dotgraft" uninstall <<< 'y' > /dev/null 2>&1; then
+  bad "结束标记在开始标记之前时 uninstall 应该拒绝执行"
+else
+  ok "结束标记在开始标记之前时 uninstall 拒绝执行"
+fi
+assert_contains "$cli3/.zshrc" "KEEP_ORDER=1"
+assert_file "$cli3/.config/zsh/init.zsh"
+
+# ------------------------------------------------------------------------------
+# bootstrap：已有非 Dotgraft source 时必须停下来
+# ------------------------------------------------------------------------------
+fakebin="$TMP/fakebin"
+mkdir -p "$fakebin"
+cat > "$fakebin/brew" << 'EOF'
+#!/bin/sh
+if [ "${1:-}" = "--prefix" ]; then
+  printf '/opt/homebrew\n'
+  exit 0
+fi
+printf '%s\n' "$*" >> "${FAKE_BREW_LOG:?}"
+if [ "${FAKE_BREW_FAIL:-0}" = "1" ]; then
+  exit 1
+fi
+exit 0
+EOF
+chmod +x "$fakebin/brew"
+
+step "场景: bootstrap 拒绝非 Dotgraft 源目录"
+boot_home="$TMP/boot-home"
+mkdir -p "$boot_home/.local/share/chezmoi"
+printf 'someone else\n' > "$boot_home/.local/share/chezmoi/dot_other"
+if printf 'y\n' | HOME="$boot_home" PATH="$fakebin:$PATH" \
+  DOTGRAFT_REPO="$REPO_DIR" bash "$REPO_DIR/bootstrap.sh" > /dev/null 2>&1; then
+  bad "bootstrap 应该拒绝非 Dotgraft 源目录"
+else
+  ok "bootstrap 拒绝了非 Dotgraft 源目录"
+fi
+assert_file "$boot_home/.local/share/chezmoi/dot_other"
+
+# ------------------------------------------------------------------------------
+# deps：无条件重跑依赖安装，并把失败反映到退出码
+# ------------------------------------------------------------------------------
+step "场景: dotgraft deps 可重复执行且传播失败"
+cli4="$TMP/cli-deps"
+setup_cli_home "$cli4"
+brew_log="$TMP/brew.log"
+if FAKE_BREW_LOG="$brew_log" HOME="$cli4" PATH="$fakebin:$PATH" \
+  "$cli4/.local/bin/dotgraft" deps > /dev/null 2>&1; then
+  ok "dotgraft deps 正常执行"
+else
+  bad "dotgraft deps 意外失败"
+fi
+if grep -q 'bundle' "$brew_log" 2> /dev/null; then
+  ok "deps 调用了 brew bundle"
+else
+  bad "deps 没有调用 brew bundle"
+fi
+if FAKE_BREW_LOG="$brew_log" FAKE_BREW_FAIL=1 HOME="$cli4" PATH="$fakebin:$PATH" \
+  "$cli4/.local/bin/dotgraft" deps > /dev/null 2>&1; then
+  bad "deps 应该把 brew 失败传播成非零退出"
+else
+  ok "deps 把 brew 失败传播成非零退出"
+fi
+
+# ------------------------------------------------------------------------------
 # 幂等：同一个 HOME 连跑两次 apply，内容不应变化
 # ------------------------------------------------------------------------------
 step "场景: 幂等（连续两次 apply）"
@@ -240,6 +470,11 @@ if [[ "$before" == "$after" ]]; then
   ok "第二次 apply 未改动 .zshrc"
 else
   bad "第二次 apply 改动了 .zshrc"
+fi
+if [[ -z "$(chezmoi_at "$idem" diff --no-pager --exclude=scripts 2> /dev/null || true)" ]]; then
+  ok "第二次 apply 后没有文件差异"
+else
+  bad "第二次 apply 后仍有文件差异"
 fi
 
 # 仓库自身的文件不该被铺进 $HOME（.chezmoiignore 回归检查）

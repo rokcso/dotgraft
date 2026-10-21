@@ -16,7 +16,9 @@
 ghostty +show-config | grep -E '^(theme|font-family|background) '
 ```
 
-如果显示的主题不是你选的，就是这个文件在压。处理：
+如果显示的主题不是你选的，就是这个文件在压。bootstrap 会把它备份到 `~/.config-backup/<时间戳>/`，并改名为 `config.before-dotgraft`；`dotgraft uninstall` 会把它恢复回去。
+
+如果你当时拒绝了移开它，可以手动处理：
 
 ```bash
 mv "$HOME/Library/Application Support/com.mitchellh.ghostty/config" \
@@ -59,7 +61,7 @@ starship --version
 grep -A3 '>>> dotgraft >>>' ~/.zshrc
 ```
 
-没有就说明安装没走完，跑 `dotgraft apply`。
+没有就说明安装没走完，跑 `dotgraft apply`。如果报依赖缺失，再跑 `dotgraft deps`。
 
 还有一种情况：别的工具在 dotgraft 区块**之后**又设置了 `PROMPT`，把它覆盖了。检查 `~/.zshrc` 里 dotgraft 区块之后的内容。
 
@@ -115,7 +117,7 @@ Error: font-maple-mono-nf-cn: It seems the existing Font is different from the o
 
 原因是你之前手动装过 Maple Mono（比如从 GitHub 下 ttf 拖进字体册），cask 想「采纳」同名但二进制不同的文件，拒绝了。
 
-Dotgraft 的安装脚本已经处理：检测到 `~/Library/Fonts` 或 `/Library/Fonts` 里有 maple 字样就整个跳过。如果你在别处手动跑 `brew bundle` 撞到，忽略即可——字体已经在了。
+Dotgraft 的安装脚本已经处理：检测到 `~/Library/Fonts` 或 `/Library/Fonts` 里有 **Maple ... CN** 的字体就跳过。以前只匹配 `maple`，会把非 CN 版误判成已安装；现在只认 CN 版。如果你在别处手动跑 `brew bundle` 撞到，忽略即可——字体已经在了。
 
 ## `dotgraft: command not found`
 
@@ -137,7 +139,7 @@ Dotgraft 的安装脚本已经处理：检测到 `~/Library/Fonts` 或 `/Library
 chezmoi managed --include=files --path-style=absolute
 ```
 
-列出来的就是需要删的路径（`~/.zshrc` 除外，它只删区块）。
+列出来的就是需要删的路径（`~/.zshrc` 除外，它只删区块）。`dotgraft uninstall` 现在会先检查白名单和 `.zshrc` 区块完整性，再备份和删除；如果它拒绝执行，先按错误提示处理，不要强行删。
 
 ## 卸载后 shell 报错
 
@@ -147,10 +149,10 @@ chezmoi managed --include=files --path-style=absolute
 grep -n 'dotgraft\|\.config/zsh' ~/.zshrc
 ```
 
-`dotgraft uninstall` 会把 `~/.zshrc` 备份到 `~/.config-backup/<时间戳>/zshrc`，可以直接比对：
+`dotgraft uninstall` 会把 `~/.zshrc` 备份到 `~/.config-backup/<时间戳>/files/.zshrc`，可以直接比对：
 
 ```bash
-diff ~/.config-backup/<时间戳>/zshrc ~/.zshrc
+diff ~/.config-backup/<时间戳>/files/.zshrc ~/.zshrc
 ```
 
 ## zsh 启动变慢
@@ -185,6 +187,53 @@ time zsh -i -c exit
 ```bash
 dotgraft reconfigure
 ```
+
+## 依赖没装上 / `brew install` 失败
+
+`run_onchange` 只在脚本内容变化时执行，所以“上次失败、这次 apply 会自动重试”是不成立的。Dotgraft 用独立的依赖入口：
+
+```bash
+dotgraft deps
+```
+
+它无条件重新渲染并执行 `run_onchange_install-packages.sh.tmpl`，失败会以非零退出。`dotgraft update` 和 `dotgraft reconfigure` 结束时会自动调用它。
+
+## bootstrap 说源目录不像 Dotgraft
+
+`chezmoi init <repo>` 在默认 source 已有内容时**不会 clone**，而是沿用现有 source。为避免把别人的 dotfiles 当成 Dotgraft 应用，bootstrap 会直接停止。按提示备份并移开：
+
+```bash
+mv "$HOME/.local/share/chezmoi" "$HOME/.local/share/chezmoi.before-dotgraft.$(date +%Y%m%d_%H%M%S)"
+```
+
+然后重新运行 bootstrap。
+
+## 卸载被拒绝
+
+两种常见原因：
+
+1. **当前 source 里混有 Dotgraft 之外的受管文件。** 脚本会列出路径并停止。先备份/移走这些文件，或给它们换一个独立 source。
+2. **`~/.zshrc` 的 dotgraft 区块不完整。** 只有开始标记、没有结束标记时，直接剥离会误删后面的内容，所以脚本选择停止。手动补齐结束标记：
+
+   ```zsh
+   # <<< dotgraft <<<
+   ```
+
+   如果文件已经损坏，先从 `~/.config-backup/<时间戳>/files/.zshrc` 恢复，再重试。
+
+## 卸载后 source 目录还在
+
+这是安全设计。只有当 source 是干净的 Dotgraft 克隆（无未提交改动、无未推送提交、remote 像 dotgraft）时，`dotgraft uninstall` 才会执行 `chezmoi purge`。否则会保留 source，避免删掉你加在同一仓库里的私有文件。
+
+确认无误后可以手动清理：
+
+```bash
+chezmoi purge --force
+```
+
+## 更新时要求重新选配
+
+`dotgraft update` 先 `git pull`，再检查 `.chezmoi.toml.tmpl` 是否变化。变化时会重新运行 `chezmoi init`，避免上游新增 data key 后模板渲染失败。按提示回答即可。
 
 ## 需要更多信息
 

@@ -36,12 +36,10 @@ jobs:
 
       # 格式标准和本地保持一致：2 空格缩进、case 内缩进、简化写法。
       # 用 go install 取 shfmt，是因为 Ubuntu 源里没有这个包。
-      # 如果上游改变了默认格式规则导致这里变红，重跑
-      #   shfmt -w -i 2 -ci -sr bootstrap.sh dot_local/bin/executable_dotgraft tests/smoke.sh
-      # 再提交即可。
+      # 固定版本，避免 @latest 改变默认格式规则后 CI 突然变红。
       - name: shfmt
         run: |
-          go install mvdan.cc/sh/v3/cmd/shfmt@latest
+          go install mvdan.cc/sh/v3/cmd/shfmt@v3.14.1
           "$(go env GOPATH)/bin/shfmt" -d -i 2 -ci -sr \
             bootstrap.sh \
             dot_local/bin/executable_dotgraft \
@@ -74,9 +72,9 @@ jobs:
 
       # cask 装的是 .app，不保证在 PATH 里建符号链接，
       # tests/smoke.sh 会自己去 /Applications 找二进制。
-      # 装不上也不阻塞：这时候会跳过 Ghostty 相关的校验，其余断言照常跑。
+      # 这一项必须成功：否则主题名和 Ghostty 配置校验会被跳过，
+      # CI 会在“看起来绿了”的情况下失去最关键的验证。
       - name: Install Ghostty
-        continue-on-error: true
         run: brew install --cask ghostty
 
       - name: Smoke test

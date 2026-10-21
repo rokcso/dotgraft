@@ -9,6 +9,11 @@
 #   - 改了 Brewfile 会重跑
 #   - 都没变时静默跳过，不会每次 apply 都拖时间
 #
+# 注意：run_onchange 不是收敛机制。包被手动删掉、或上次安装失败时，
+# 只要脚本内容没变就不会重跑。所以 dotgraft 另有 `dotgraft deps`
+# 命令，会无条件重新执行本脚本。本脚本失败时会以非零退出，
+# 让 chezmoi 不把这个版本标记为“已完成”，下次 apply 仍会重试。
+#
 # 脚本必须幂等：brew 对已安装的包会直接跳过。
 # ==============================================================================
 set -eu
@@ -17,15 +22,17 @@ set -eu
 # 清单哈希: {{ include "Brewfile" | sha256sum }}
 
 if ! command -v brew >/dev/null 2>&1; then
-  echo "  ! 找不到 Homebrew，跳过依赖安装" >&2
-  echo "    装好 Homebrew 后运行 dotgraft update 重试" >&2
-  exit 0
+  echo "  ! 找不到 Homebrew，无法安装依赖" >&2
+  echo "    装好 Homebrew 后运行 dotgraft deps 重试" >&2
+  exit 1
 fi
 
+failed=0
+
 echo "==> 安装基础依赖"
-# 单个包失败（比如网络问题）不应该中断整个 apply，
-# 下面会汇总哪些没装上，由用户决定是否重试。
-brew bundle --file="{{ .chezmoi.sourceDir }}/Brewfile" || true
+# 单个包失败（比如网络问题）不应中断后续安装，但最后必须把失败
+# 反映到退出码里，否则 chezmoi 会认为依赖已经装好。
+brew bundle --file="{{ .chezmoi.sourceDir }}/Brewfile" || failed=1
 
 # ------------------------------------------------------------------------------
 # 字体：只在不存在时安装
@@ -34,12 +41,14 @@ brew bundle --file="{{ .chezmoi.sourceDir }}/Brewfile" || true
 #   "It seems the existing Font is different from the one being installed."
 # 从 GitHub 手动装过 Maple Mono 的人几乎一定会撞上。
 # 所以这里先探测，已经有了就完全跳过。
-if ls "$HOME/Library/Fonts" /Library/Fonts 2>/dev/null | grep -qi "maple"; then
-  echo "==> 已存在 Maple Mono 字体，跳过"
+#
+# 只认 CN 版：如果只匹配 "maple"，用户装了非 CN 的 Maple Mono NF 时
+# 会被误判为“已安装”，而配置里写的是 Maple Mono NF CN，最终字体回退。
+if ls "$HOME/Library/Fonts" /Library/Fonts 2>/dev/null | grep -Eqi 'maple.*cn'; then
+  echo "==> 已存在 Maple Mono NF CN 字体，跳过"
 else
   echo "==> 安装字体 font-maple-mono-nf-cn"
-  brew install --cask font-maple-mono-nf-cn || \
-    echo "  ! 字体安装失败，请手动安装：https://github.com/subframe7536/maple-font" >&2
+  brew install --cask font-maple-mono-nf-cn || failed=1
 fi
 
 # ------------------------------------------------------------------------------
@@ -47,8 +56,16 @@ fi
 # ------------------------------------------------------------------------------
 {{ if .tools -}}
 echo "==> 安装选配工具: {{ .tools | join " " }}"
-brew install {{ .tools | join " " }} || \
-  echo "  ! 有工具没装上，可以稍后运行 dotgraft update 重试" >&2
+brew install {{ .tools | join " " }} || failed=1
 {{- else -}}
 echo "==> 没有选择任何 CLI 工具，跳过"
 {{- end }}
+
+if [ "$failed" -ne 0 ]; then
+  echo "" >&2
+  echo "  ! 有依赖没装上" >&2
+  echo "    修复网络或 Homebrew 后运行 dotgraft deps 重试" >&2
+  exit 1
+fi
+
+echo "==> 依赖已就绪"

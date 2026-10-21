@@ -37,9 +37,15 @@
       (list "Catppuccin Mocha" "Catppuccin Latte" "Catppuccin Frappe" "GitHub Dark" "GitHub Light Default" "TokyoNight")
       "Catppuccin Mocha" -}}
 
+{{- /* 默认值跟系统版本走： macOS 26 起才支持 Ghostty 的原生毛玻璃。
+       在更旧的 macOS 上默认 false，避免用户一路回车得到一个
+       语义上不存在、甚至可能校验失败的配置。 */ -}}
+{{- $macos_major := index (splitList "." (output "sw_vers" "-productVersion")) 0 | atoi -}}
+{{- $glass_default := ge $macos_major 26 -}}
+
 {{- $glass := promptBool
       "启用 macOS 原生毛玻璃效果？（需要 macOS 26 及以上）"
-      true -}}
+      $glass_default -}}
 
 [data]
   tools = {{ $clean | toJson }}

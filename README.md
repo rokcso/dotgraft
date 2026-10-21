@@ -14,10 +14,10 @@ Dotgraft 换了个前提——**配置是声明式的，机器是收敛出来的
 
 - **幂等**：`chezmoi apply` 跑一百次结果一样
 - **可预览**：`dotgraft diff` 先看再改
-- **可更新**：`dotgraft update` 把上游拉进正在用的配置
+- **可更新**：`dotgraft update` 拉取上游、预览、应用，并修复依赖
 - **可共处**：只维护 `~/.zshrc` 里的一小段标记区块，其余字节不动
-- **可选配**：组件在安装时勾选，取消勾选会被真正移除
-- **可撤销**：`dotgraft uninstall` 让 shell 回到安装前
+- **可选配**：组件在安装时勾选；取消勾选会删除对应配置片段（**不会**自动卸载 Homebrew 包）
+- **可撤销**：`dotgraft uninstall` 会先备份受管文件和已有配置，再删除；能恢复 bootstrap 移开的 Ghostty 覆盖配置
 
 ## 快速开始
 
@@ -33,7 +33,9 @@ bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/main/bootstr
 chezmoi init --apply rokcso/dotgraft
 ```
 
-> 这条路径**只拉配置**，不会装 chezmoi、不会预览 diff，也不会处理 macOS 上的 Ghostty 覆盖文件。依赖会在 `apply` 过程中由 `run_onchange` 脚本补装，但覆盖文件得你自己移开，否则主题静默不生效。手动处理见 [Ghostty 文档](docs/ghostty.md#先看这个macos-上有个会覆盖你的文件)。
+> 这条路径**只拉配置**，不会装 chezmoi、不会预览 diff，也不会处理 macOS 上的 Ghostty 覆盖文件。依赖会在 `apply` 过程中由 `run_onchange` 脚本补装；如果补装失败，再运行 `dotgraft deps`。
+>
+> **重要**：如果默认 chezmoi 源目录 `~/.local/share/chezmoi` 已经有内容，`chezmoi init rokcso/dotgraft` 不会 clone 本仓库，而是继续使用现有 source。bootstrap.sh 会检测并拒绝这种情况；手动走这条命令前，请先确认 source 为空，或先备份并移开它。
 
 ## 选配
 
@@ -41,9 +43,9 @@ chezmoi init --apply rokcso/dotgraft
 
 | 问题 | 作用 |
 |---|---|
-| 要启用哪些 CLI 工具（多选） | fzf / zoxide / eza / bat / yazi。没勾的不安装，对应配置片段也会被删除 |
+| 要启用哪些 CLI 工具（多选） | fzf / zoxide / eza / bat / yazi。没勾的不安装，对应配置片段也会被删除；已经装过的 Homebrew 包不会卸载 |
 | Ghostty 主题 | 写进 Ghostty 配置 |
-| 是否用原生毛玻璃 | `macos-glass-regular`（需 macOS 26+）或数字模糊半径 |
+| 是否用原生毛玻璃 | 默认值按 macOS 版本决定：macOS 26+ 默认开启（`macos-glass-regular`），更旧的系统默认数字模糊 |
 
 随时可以改：
 
@@ -60,8 +62,9 @@ dotgraft reconfigure
 | `dotgraft status` | 当前选配、文件差异、版本 |
 | `dotgraft diff` | 预览改动 |
 | `dotgraft apply` | 预览、确认、应用 |
-| `dotgraft update` | 拉取上游并应用，依赖有变化会重装 |
-| `dotgraft reconfigure` | 重新选配 |
+| `dotgraft update` | 拉取上游、预览、应用，并运行 `dotgraft deps` |
+| `dotgraft deps` | 无条件安装/修复 Homebrew 依赖（不受 `run_onchange` 缓存影响） |
+| `dotgraft reconfigure` | 重新选配，并修复依赖 |
 | `dotgraft edit <文件>` | 编辑受管文件的仓库副本 |
 | `dotgraft cd` | 进入 chezmoi 源目录 |
 | `dotgraft doctor` | 环境自检 |
@@ -71,7 +74,7 @@ dotgraft reconfigure
 
 ## 会改动哪些文件
 
-七处，不多不少。不用 `sudo`，不动 `/etc`，**`~/.zprofile` 和 `~/.zshenv` 永不修改**。
+受管目标七处，另有 chezmoi 源目录、备份目录和 Ghostty 覆盖文件。不用 `sudo`，不动 `/etc`，**`~/.zprofile` 和 `~/.zshenv` 永不修改**。
 
 | 路径 | 内容 | 方式 |
 |---|---|---|
@@ -83,13 +86,27 @@ dotgraft reconfigure
 | `~/.local/bin/dotgraft` | 命令本体 | 完全接管 |
 | `~/.config/chezmoi/chezmoi.toml` | 选配答案 | 本机生成，不进仓库 |
 
+此外会创建/修改：
+
+| 路径 | 内容 |
+|---|---|
+| `~/.local/share/chezmoi` | chezmoi 源目录（git clone） |
+| `~/.config-backup/<时间戳>/` | 已有目标文件、Ghostty 覆盖文件和选配答案的备份 |
+| `~/Library/Application Support/com.mitchellh.ghostty/config` | 如果存在，会备份并移开，避免覆盖主题 |
+
 ## 卸载
 
 ```bash
 dotgraft uninstall
 ```
 
-会备份 `90-local.zsh` 和 `~/.zshrc`，删除全部受管文件，剥掉 `~/.zshrc` 里的标记区块，清理空目录，最后清掉 chezmoi 自身状态。**不会**卸载 Homebrew 包。
+会先把所有受管文件、`~/.zshrc`、`~/.config/chezmoi/chezmoi.toml` 备份到 `~/.config-backup/<时间戳>/`（受管文件在 `files/` 下），然后删除受管文件、剥掉 `~/.zshrc` 里的标记区块、清理空目录，并在存在时恢复 bootstrap 移开的 Ghostty 覆盖配置。**不会**卸载 Homebrew 包。
+
+安全边界：
+
+- 如果 `~/.zshrc` 里的 dotgraft 区块不完整，卸载会直接拒绝，避免误删后面的内容。
+- 如果当前 chezmoi source 里混有 Dotgraft 之外的受管文件，卸载会列出它们并停止；请先手动处理。
+- 只有当 source 是干净的 Dotgraft 克隆（无未提交改动、无未推送提交、remote 像 dotgraft）时才会执行 `chezmoi purge`；否则保留 source，并提示你手动确认。
 
 注意 `chezmoi purge` 单独跑是不够的——它按设计会保留所有目标文件。
 
@@ -107,11 +124,12 @@ dotgraft uninstall
 - macOS 13 及以上（Apple Silicon / Intel 均可，路径由 `brew --prefix` 解析）
 - [Homebrew](https://brew.sh)
 - [Ghostty](https://ghostty.org) 1.3 及以上
+- 原生毛玻璃需要 macOS 26 及以上；更旧的系统默认使用数字模糊
 - 首次安装需要网络
 
 ## 状态
 
-已实现：安装、更新、卸载、选配、CI（shellcheck / shfmt / zsh -n / 渲染后校验 Ghostty 配置）。验证环境：Ghostty 1.3.1 · Starship 1.27.0 · zsh 5.9 · chezmoi 2.73 · macOS 27。
+已实现：安装、更新、卸载、选配、依赖修复、CI（shellcheck / shfmt / zsh -n / 渲染后校验 Ghostty 配置）。冒烟测试覆盖安装、重新选配、卸载安全边界、`.zshrc` 损坏状态和依赖失败传播。验证环境：Ghostty 1.3.1 · Starship 1.27.0 · zsh 5.9 · chezmoi 2.73 · macOS 27。
 
 尚未支持：Linux。Ghostty 的安装方式、字体路径和几个配置项在 Linux 上都不同，而本仓库没有 Linux 环境可验证。欢迎到 [issues](https://github.com/rokcso/dotgraft/issues) 说明发行版。
 

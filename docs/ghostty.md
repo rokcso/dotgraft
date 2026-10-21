@@ -29,7 +29,7 @@ theme = GitHub Dark     ← XDG 被覆盖
 background = #0d1117    ← XDG 被覆盖
 ```
 
-所以 `bootstrap.sh` 会检测这个文件，打印内容、备份到 `~/.config-backup/<时间戳>/`，征求同意后改名为 `config.before-dotgraft`。手动处理：
+所以 `bootstrap.sh` 会检测这个文件，打印内容、备份到 `~/.config-backup/<时间戳>/`，征求同意后改名为 `config.before-dotgraft`；`dotgraft uninstall` 会把它恢复回去。手动处理：
 
 ```bash
 mv "$HOME/Library/Application Support/com.mitchellh.ghostty/config" \
@@ -91,7 +91,7 @@ background-opacity = 0.92
 
 ### 毛玻璃
 
-选配决定一行：
+选配决定一行。默认答案按系统版本决定：macOS 26+ 默认选原生，更旧的系统默认数字模糊。
 
 ```
 # 选「原生」且 macOS ≥ 26：

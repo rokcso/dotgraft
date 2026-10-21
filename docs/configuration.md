@@ -8,6 +8,7 @@
 .
 ├── .chezmoi.toml.tmpl                     # 安装时的选配问答
 ├── .chezmoiignore                         # 哪些文件不铺进 $HOME
+├── .dotgraft-source                        # source 归属标记
 ├── .gitignore
 ├── Brewfile                               # 基础依赖，始终安装
 ├── bootstrap.sh                           # 一行安装入口
@@ -88,14 +89,14 @@
 渲染结果为空                 chezmoi 删除目标文件
 ```
 
-最后那步是关键。可选片段整个包在 `{{ if has "fzf" .tools }} ... {{ end }}` 里，一个都不选时渲染出零字节，chezmoi 默认会删掉空文件——于是「取消勾选」是真正的移除，而不是留一个死文件。
+最后那步是关键。可选片段整个包在 `{{ if has "fzf" .tools }} ... {{ end }}` 里，一个都不选时渲染出零字节，chezmoi 默认会删掉空文件——于是「取消勾选」是真正的移除配置，而不是留一个死文件。注意：这**不会**卸载已经装过的 Homebrew 包，只是不再安装它们。
 
 注意 `.chezmoiignore` + `exact_` 的组合做不到这件事：被 ignore 的条目对 `exact_` 不可见，之前装过的文件会一直赖在磁盘上。所以选配走模板，不走 ignore。
 
 改选配：
 
 ```bash
-dotgraft reconfigure      # 等价于 chezmoi init 后 chezmoi apply
+dotgraft reconfigure      # chezmoi init → 预览 → apply → 修复依赖
 ```
 
 `chezmoi init` 会重新渲染 `.chezmoi.toml.tmpl`，覆盖 `~/.config/chezmoi/chezmoi.toml`。
@@ -109,6 +110,17 @@ dotgraft reconfigure      # 等价于 chezmoi init 后 chezmoi apply
 - 别的安装器让你「追加到 `~/.zshrc`」的那些行
 
 它由 git 以外的机制保护——`create_` 只看文件在不在，不看内容。所以你在里面写什么都不会丢。但**不要放密钥**：它虽然不进仓库，也不是加密存储。
+
+## 源目录归属
+
+Dotgraft 的 `update` / `uninstall` 会读写 chezmoi source，所以它必须确认自己面对的是哪个仓库：
+
+- 仓库根部有 `.dotgraft-source` 标记；旧版本 source 用 `.chezmoi.toml.tmpl` + `dot_local/bin/executable_dotgraft` 兜底判断
+- `bootstrap.sh` 在 `chezmoi init` 之前检查默认 source；已有内容且不像 Dotgraft 时直接停止，不会静默沿用别人的 dotfiles
+- `dotgraft uninstall` 只允许删除白名单内的目标路径；发现非 Dotgraft 受管文件就停止
+- `chezmoi purge` 只在 source 是干净的 Dotgraft 克隆时执行；有未提交/未推送内容时保留 source
+
+如果你想把 Dotgraft 和自己的私有 dotfiles 放在同一个 chezmoi source 里，卸载前需要先手动处理这些私有文件；更稳妥的做法是给它们单独的 source。
 
 ## 为什么不用 ZDOTDIR
 
@@ -129,6 +141,7 @@ dotgraft reconfigure      # 等价于 chezmoi init 后 chezmoi apply
 1. 文件名加 `.tmpl`
 2. 内容整个包进 `{{ if has "工具名" .tools }} ... {{ end }}`
 3. 在 `.chezmoi.toml.tmpl` 的 `promptMultichoice` 选项列表里加上这个名字
+4. 如果是**固定**片段（不是选配），同步更新 `dot_local/bin/executable_dotgraft` 的 `is_allowed_target` 白名单和 `tests/smoke.sh` 里的同名白名单；否则卸载会把它当成“非 Dotgraft 文件”拒绝执行，CI 也会失败
 
 ### 加一个新的选配问题
 
@@ -153,11 +166,19 @@ promptString      prompt [default]
 dotgraft diff       # 确认落点对不对
 ```
 
+如果这是新的受管路径，还要把它加入 `dot_local/bin/executable_dotgraft` 的 `is_allowed_target` 和 `tests/smoke.sh` 的白名单；否则卸载会因为“非 Dotgraft 受管文件”而拒绝执行。
+
 ### 加一个依赖
 
 基础依赖进 `Brewfile`；可选依赖走选配，装的动作在 `run_onchange_install-packages.sh.tmpl` 里。
 
 那个脚本里嵌了两个哈希（选配清单、`Brewfile`），所以只在两者变化时重跑，平时 apply 不会浪费时间。
+
+但 `run_onchange` **不是收敛机制**：包被手动删掉、或上次安装失败时，只要脚本内容没变就不会重跑。所以：
+
+- 脚本失败时会以非零退出，让 chezmoi 不把这个版本标记为完成，下次 apply 会重试
+- `dotgraft update` / `dotgraft reconfigure` 结束时会运行 `dotgraft deps`
+- `dotgraft deps` 无条件重新渲染并执行同一份安装脚本，是修复依赖的入口
 
 ## 常用命令
 
@@ -165,6 +186,8 @@ dotgraft diff       # 确认落点对不对
 dotgraft status                  # 选配、差异、版本
 dotgraft diff                    # 预览
 dotgraft apply                   # 应用
+dotgraft deps                    # 安装/修复依赖
+dotgraft update                  # 拉上游、预览、应用、修依赖
 chezmoi edit --apply ~/.zshrc    # 编辑并立即生效
 dotgraft cd                      # 进源目录，用 git 正常提交
 dotgraft doctor                  # 环境自检
@@ -183,10 +206,15 @@ bash tests/smoke.sh
 它会检查这些：
 
 - 三个场景（全选 / 全不选 / 只选一项）下，可选片段该在的在、该消失的消失
+- 渲染后的可选 zsh 片段和 `.zshrc` 通过 `zsh -n`
 - 主题和毛玻璃按选择渲染
 - `.zshrc` 里只出现一个 dotgraft 区块，且原有内容不丢
+- 重新选配（全选 → 全不选）会删掉可选片段，同时保留 `90-local.zsh`
 - 第二次 `apply` 不改动任何东西（幂等）
-- 仓库自身文件（README、Brewfile、tests、docs）没有进入 `$HOME`
+- 仓库自身文件（README、Brewfile、tests、docs）没有进入 `$HOME`，受管文件都在白名单内
+- 卸载会拒绝非 Dotgraft 受管文件、拒绝不完整的 `.zshrc` 区块
+- 卸载成功路径会备份 `90-local.zsh`、移除区块、恢复 Ghostty 覆盖文件
+- `dotgraft deps` 会调用 `brew bundle`，并把安装失败传播成非零退出
 - 选配里列的**每个主题名**在 Ghostty 里真实存在
 
 最后一条是自动化的：脚本会从 `.chezmoi.toml.tmpl` 里抽出主题列表逐个校验。加错主题名（比如写成 `GitHub Light` 而不是 `GitHub Light Default`）会直接失败。
@@ -197,6 +225,7 @@ bash tests/smoke.sh
 shellcheck bootstrap.sh dot_local/bin/executable_dotgraft tests/smoke.sh
 shfmt -d -i 2 -ci -sr bootstrap.sh dot_local/bin/executable_dotgraft tests/smoke.sh
 zsh -n dot_config/zsh/init.zsh dot_config/zsh/conf.d/*.zsh
+# 注意：上面的 glob 不包含 *.zsh.tmpl；可选模板由 tests/smoke.sh 渲染后再做 zsh -n
 dotgraft diff     # 改完确认落点
 ```
 
@@ -217,4 +246,4 @@ ghostty +validate-config --config-file=<(chezmoi execute-template < dot_config/g
 | `lint` | ubuntu | `shellcheck`、`shfmt -d`、`zsh -n` |
 | `render` | macos | 装 chezmoi 和 Ghostty，跑 `tests/smoke.sh` |
 
-`render` 那条才是关键：它跑的就是用户安装时会走的同一条路径。模板写错、选配项写错、`.chezmoiignore` 漏了目录，都会在那里暴露。
+`render` 那条才是关键：它跑的就是用户安装时会走的同一条路径。模板写错、选配项写错、`.chezmoiignore` 漏了目录，都会在那里暴露。Ghostty 安装不再 `continue-on-error`，否则主题和配置校验会被静默跳过。CI 里的 `shfmt` 版本是固定的，避免 `@latest` 改变格式规则导致流水线漂移。
