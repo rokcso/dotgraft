@@ -4,7 +4,7 @@ load helpers
 
 @test "choose_theme selects by number" {
   result="$(printf '2\n' | choose_theme "Catppuccin Mocha" 2> /dev/null)"
-  [ "$result" = "Catppuccin Latte" ]
+  [ "$result" = "Dotgraft Paper" ]
 }
 
 @test "choose_theme accepts default" {
@@ -14,7 +14,7 @@ load helpers
 
 @test "choose_theme retries invalid input" {
   result="$(printf '9\n3\n' | choose_theme "Catppuccin Mocha" 2> /dev/null)"
-  [ "$result" = "Catppuccin Frappe" ]
+  [ "$result" = "Catppuccin Mocha" ]
 }
 
 @test "choose_glass selects native" {

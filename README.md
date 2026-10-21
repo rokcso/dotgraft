@@ -82,19 +82,19 @@ dotgraft apply
 安装时会问三项，答案存在 `~/.config/dotgraft/chezmoi.toml`，**不进仓库**：
 
 - **CLI 工具**：chezmoi 的勾选列表，空格选择、回车确认
-- **Ghostty 主题**：编号菜单，输入 `1`–`6` 或回车用默认
+- **Ghostty 主题**：编号菜单，默认 `Dotgraft Ink`；浅色选 `Dotgraft Paper`
 - **毛玻璃**：编号菜单，输入 `1`（原生）或 `2`（数字模糊）
 
 | 问题 | 作用 |
 |---|---|
 | 要启用哪些 CLI 工具（多选） | fzf / zoxide / eza / bat / yazi。没勾的不安装，对应配置片段也会被删除；已经装过的 Homebrew 包不会卸载 |
-| Ghostty 主题 | 写进 Ghostty 配置 |
+| Ghostty 主题 | `Dotgraft Ink`（深色，默认）/ `Dotgraft Paper`（浅色）/ 内置主题 |
 | 是否用原生毛玻璃 | 默认值按 macOS 版本决定：macOS 26+ 默认开启（`macos-glass-regular`），更旧的系统默认数字模糊 |
 
 非交互环境可用 `DOTGRAFT_THEME` 和 `DOTGRAFT_GLASS` 跳过菜单：
 
 ```bash
-DOTGRAFT_THEME="GitHub Dark" DOTGRAFT_GLASS=false bash bootstrap.sh
+DOTGRAFT_THEME="Dotgraft Paper" DOTGRAFT_GLASS=false bash bootstrap.sh
 ```
 
 随时可以改：
@@ -125,6 +125,8 @@ dotgraft reconfigure
 
 `dotgraft diff` 默认只列文件摘要，避免首次安装时把整份新文件打印出来；要看逐行补丁用 `dotgraft diff --full`。
 
+Starship 会根据 Ghostty 主题自动选择调色板：Dotgraft Ink 用 `dotgraft_ink`，Dotgraft Paper 用 `dotgraft_paper`，内置浅色主题使用 `catppuccin_latte`。
+
 如果系统里没有现成的 `dotg` 命令，安装后会自动得到一个短别名：
 
 ```bash
@@ -152,6 +154,7 @@ dotg <Tab>
 | `~/.config/zsh/` | zsh 配置 | 完全接管 |
 | `~/.config/zsh/conf.d/90-local.zsh` | 你的机器专属配置 | 只创建一次 |
 | `~/.config/ghostty/config` | Ghostty 配置 | 完全接管，走模板 |
+| `~/.config/ghostty/themes/` | Dotgraft Ink / Paper 主题 | 完全接管 |
 | `~/.config/starship.toml` | Starship 配置 | 完全接管 |
 | `~/.local/bin/dotgraft` | 命令本体 | 完全接管 |
 | `~/.config/dotgraft/chezmoi.toml` | Dotgraft 独立的选配答案 | 本机生成，不进仓库 |

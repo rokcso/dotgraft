@@ -294,6 +294,25 @@ exec zsh
 
 `DOTGRAFT_REPO="$PWD"` 只 clone 已 commit 的 HEAD；未提交改动需要用文档里的 `DOTGRAFT_SOURCE="$PWD" ... dotgraft apply` 方式。
 
+## Ghostty 说找不到 Dotgraft Ink / Paper
+
+主题文件应该在：
+
+```text
+~/.config/ghostty/themes/Dotgraft Ink
+~/.config/ghostty/themes/Dotgraft Paper
+```
+
+先确认配置已应用：
+
+```bash
+dotgraft apply
+ls ~/.config/ghostty/themes/
+ghostty +list-themes | grep -i dotgraft
+```
+
+如果主题文件存在但 Ghostty 仍找不到，按 `Cmd + Shift + ,` 重载配置，或检查 `theme =` 的名称是否与文件名完全一致（大小写敏感）。
+
 ## `dotgraft diff` 输出太长
 
 `dotgraft diff` 默认只显示 `chezmoi status` 的文件摘要，适合确认“会改哪些文件”。首次安装时所有目标都是新文件，完整 diff 会把整份 `starship.toml`、`dotgraft` 脚本打印出来，所以默认不显示。

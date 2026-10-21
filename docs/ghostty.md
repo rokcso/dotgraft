@@ -44,15 +44,41 @@ mv "$HOME/Library/Application Support/com.mitchellh.ghostty/config" \
 theme = {{ .theme }}
 ```
 
-内置主题用 `ghostty +list-themes` 列出，加 `--preview` 可以逐个预览配色。
+Dotgraft 自带两套自定义主题：
+
+- `Dotgraft Ink`：深色，默认主题
+- `Dotgraft Paper`：浅色
+
+主题文件由 chezmoi 安装到：
+
+```text
+~/.config/ghostty/themes/Dotgraft Ink
+~/.config/ghostty/themes/Dotgraft Paper
+```
 
 想跟随系统深浅色切换，写成一对：
 
-```
-theme = dark:Catppuccin Mocha,light:Catppuccin Latte
+```text
+theme = dark:Dotgraft Ink,light:Dotgraft Paper
 ```
 
-**不要在配置里再写 `background`。** 主题已经定义了底色（Catppuccin Mocha 是 `#1e1e2e`），手写 `background` 会把它顶掉，等于白换主题。
+内置主题仍可用 `ghostty +list-themes` 查看，加 `--preview` 可以预览配色。
+
+**不要在配置里再写 `background`。** 主题已经定义了底色（Ink 是 `#121816`，Paper 是 `#F4F1E8`），手写 `background` 会把它顶掉，等于白换主题。
+
+### Dotgraft 主题配色
+
+两套主题都只设置颜色相关配置：
+
+| 角色 | Dotgraft Ink | Dotgraft Paper |
+|---|---|---|
+| Background | `#121816` | `#F4F1E8` |
+| Foreground | `#D8E3DA` | `#26302B` |
+| Cursor | `#F2B36B` | `#2F6F5E` |
+| Selection background | `#345A4A` | `#A8C9B6` |
+| Selection foreground | `#F0F7F2` | `#1E3A2F` |
+
+ANSI 16 色也分别配套设计。Ink 是深绿墨底 + 暖白前景 + 琥珀光标；Paper 是暖纸底 + 墨绿前景 + 深绿光标。Starship 会自动切换到对应的 `dotgraft_ink` / `dotgraft_paper` 调色板。
 
 ### 字体
 

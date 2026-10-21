@@ -1,0 +1,24 @@
+# Dotgraft Ink — 深色主题
+# 只设置颜色相关配置；不要在主题文件里设置 theme/config-file/keybind。
+palette = 0=#212A25
+palette = 1=#E06C75
+palette = 2=#8BD49C
+palette = 3=#E5C07B
+palette = 4=#7AA2F7
+palette = 5=#C99BEA
+palette = 6=#67D4C4
+palette = 7=#C9D5CD
+palette = 8=#5A6B61
+palette = 9=#FF8A90
+palette = 10=#A6E3A1
+palette = 11=#FFD08A
+palette = 12=#9AB8FF
+palette = 13=#E0B0FF
+palette = 14=#8CE8DC
+palette = 15=#F2F6F3
+background = #121816
+foreground = #D8E3DA
+cursor-color = #F2B36B
+cursor-text = #121816
+selection-background = #345A4A
+selection-foreground = #F0F7F2

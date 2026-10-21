@@ -1,0 +1,24 @@
+# Dotgraft Paper — 浅色主题
+# 只设置颜色相关配置；不要在主题文件里设置 theme/config-file/keybind。
+palette = 0=#26302B
+palette = 1=#B23A48
+palette = 2=#2F7D4F
+palette = 3=#8A6A1F
+palette = 4=#2F5DA8
+palette = 5=#7A4E9E
+palette = 6=#167A78
+palette = 7=#A8B5AA
+palette = 8=#6B7A70
+palette = 9=#8F2634
+palette = 10=#1F5F3A
+palette = 11=#6F5415
+palette = 12=#234B8A
+palette = 13=#633B84
+palette = 14=#0E5E5C
+palette = 15=#D8D3C8
+background = #F4F1E8
+foreground = #26302B
+cursor-color = #2F6F5E
+cursor-text = #F4F1E8
+selection-background = #A8C9B6
+selection-foreground = #1E3A2F

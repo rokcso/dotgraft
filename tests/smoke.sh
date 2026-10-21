@@ -203,6 +203,20 @@ SEED
   else
     assert_contains "$localhome/.config/ghostty/config" "background-blur = 20"
   fi
+  case "$theme" in
+    "Dotgraft Ink" | "Dotgraft Paper")
+      assert_file "$localhome/.config/ghostty/themes/$theme"
+      ;;
+  esac
+  local expected_palette
+  case "$theme" in
+    "Dotgraft Ink") expected_palette=dotgraft_ink ;;
+    "Dotgraft Paper") expected_palette=dotgraft_paper ;;
+    "Catppuccin Latte" | "GitHub Light Default") expected_palette=catppuccin_latte ;;
+    "Catppuccin Frappe") expected_palette=catppuccin_frappe ;;
+    *) expected_palette=catppuccin_mocha ;;
+  esac
+  assert_contains "$localhome/.config/starship.toml" "palette = '$expected_palette'"
 
   # .zshrc 注入：区块在，原有内容也在，且区块只出现一次
   assert_contains "$localhome/.zshrc" "# >>> dotgraft >>>"
@@ -257,6 +271,8 @@ SEED
         .config/zsh/conf.d/90-local.zsh | \
         .config/zsh/conf.d/99-highlighting.zsh | \
         .config/ghostty/config | \
+        '.config/ghostty/themes/Dotgraft Ink' | \
+        '.config/ghostty/themes/Dotgraft Paper' | \
         .config/starship.toml | \
         .local/bin/dotgraft | \
         .zshrc) ;;
@@ -281,7 +297,7 @@ SEED
 
   # Ghostty 在的话顺便校验渲染结果（模板必须先渲染，不能直接喂）
   if [[ -n "$GHOSTTY_BIN" ]]; then
-    if "$GHOSTTY_BIN" +validate-config --config-file="$localhome/.config/ghostty/config" > /dev/null 2>&1; then
+    if HOME="$localhome" "$GHOSTTY_BIN" +validate-config --config-file="$localhome/.config/ghostty/config" > /dev/null 2>&1; then
       ok "Ghostty 配置校验通过"
     else
       bad "Ghostty 配置校验失败"
@@ -296,6 +312,8 @@ SEED
 run_case all "fzf/zoxide/eza/bat/yazi" "Catppuccin Mocha" true
 run_case none "" "GitHub Dark" false
 run_case partial "eza" "TokyoNight" true
+run_case dotgraft-ink "fzf/zoxide/eza/bat/yazi" "Dotgraft Ink" true
+run_case dotgraft-paper "eza" "Dotgraft Paper" false
 
 # ------------------------------------------------------------------------------
 # 主题选项校验：.chezmoi.toml.tmpl 里列的每个主题名都必须在 Ghostty 里存在
@@ -309,12 +327,23 @@ if [[ -n "$GHOSTTY_BIN" ]]; then
   else
     while IFS= read -r theme_name; do
       [[ -z "$theme_name" ]] && continue
-      printf 'theme = %s\n' "$theme_name" > "$TMP/theme-probe.conf"
-      if "$GHOSTTY_BIN" +validate-config --config-file="$TMP/theme-probe.conf" > /dev/null 2>&1; then
-        ok "主题 $theme_name 存在"
-      else
-        bad "主题 $theme_name 在 Ghostty 里不存在"
-      fi
+      case "$theme_name" in
+        "Dotgraft Ink" | "Dotgraft Paper")
+          if "$GHOSTTY_BIN" +validate-config --config-file="$SRC/dot_config/ghostty/themes/$theme_name" > /dev/null 2>&1; then
+            ok "自定义主题 $theme_name 校验通过"
+          else
+            bad "自定义主题 $theme_name 校验失败"
+          fi
+          ;;
+        *)
+          printf 'theme = %s\n' "$theme_name" > "$TMP/theme-probe.conf"
+          if "$GHOSTTY_BIN" +validate-config --config-file="$TMP/theme-probe.conf" > /dev/null 2>&1; then
+            ok "主题 $theme_name 存在"
+          else
+            bad "主题 $theme_name 在 Ghostty 里不存在"
+          fi
+          ;;
+      esac
     done <<< "$(printf '%s' "$theme_line" | grep -o '\"[^\"]*\"' | tr -d '\"' || true)"
   fi
 fi

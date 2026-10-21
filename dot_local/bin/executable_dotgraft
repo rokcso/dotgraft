@@ -15,6 +15,8 @@ DOTGRAFT_CONFIG="${DOTGRAFT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/c
 
 # 与 .chezmoi.toml.tmpl 的 promptChoice 列表保持一致。
 DOTGRAFT_THEMES=(
+  "Dotgraft Ink"
+  "Dotgraft Paper"
   "Catppuccin Mocha"
   "Catppuccin Latte"
   "Catppuccin Frappe"
@@ -160,7 +162,7 @@ choose_glass() {
 current_theme() {
   local value
   value="$(chezmoi_dg execute-template '{{ .theme }}' 2> /dev/null || true)"
-  printf '%s\n' "${value:-Catppuccin Mocha}"
+  printf '%s\n' "${value:-Dotgraft Ink}"
 }
 
 current_glass() {
@@ -221,6 +223,8 @@ is_allowed_target() {
       .config/zsh/conf.d/90-local.zsh | \
       .config/zsh/conf.d/99-highlighting.zsh | \
       .config/ghostty/config | \
+      '.config/ghostty/themes/Dotgraft Ink' | \
+      '.config/ghostty/themes/Dotgraft Paper' | \
       .config/starship.toml | \
       .local/bin/dotgraft | \
       .zshrc)

@@ -16,7 +16,9 @@ source "$HOME/.config/zsh/init.zsh"
 
 ## Starship（提示符）
 
-`~/.config/starship.toml` 是 Starship 官方 `catppuccin-powerline` 预设的原样副本，只改了一处：
+`~/.config/starship.toml` 是 Starship 官方 `catppuccin-powerline` 预设，加了两套 Dotgraft 调色板和主题联动。
+
+仍然保留的关键改动：
 
 ```
 [line_break]
@@ -27,7 +29,17 @@ disabled = false
 
 配色梯度：`red → peach → yellow → green → sapphire → lavender`，每个色块对应一类信息：用户 → 路径 → Git → 语言版本。
 
-换调色板改文件里的 `palette`，可选 `catppuccin_mocha` / `catppuccin_frappe` / `catppuccin_macchiato` / `catppuccin_latte`。
+`starship.toml.tmpl` 会根据 Ghostty 主题自动选择调色板：
+
+| Ghostty 主题 | Starship palette |
+|---|---|
+| `Dotgraft Ink` | `dotgraft_ink` |
+| `Dotgraft Paper` | `dotgraft_paper` |
+| `Catppuccin Latte` / `GitHub Light Default` | `catppuccin_latte` |
+| `Catppuccin Frappe` | `catppuccin_frappe` |
+| 其他深色主题 | `catppuccin_mocha` |
+
+也可以手动改 `palette`；可选的 Dotgraft 调色板是 `dotgraft_ink` / `dotgraft_paper`。
 
 ### 同步上游预设
 
@@ -35,9 +47,14 @@ disabled = false
 
 ```bash
 starship preset catppuccin-powerline -o /tmp/new.toml
-cp /tmp/new.toml dot_config/starship.toml
-# 然后把 line_break 那一处改回 false，并更新文件头的版本号
+# 不要直接覆盖：先对比，把上游变化合并进 dot_config/starship.toml.tmpl
 ```
+
+合并时要保留：
+
+- `line_break.disabled = false`
+- 顶部的 palette 条件块
+- `palettes.dotgraft_ink` / `palettes.dotgraft_paper`
 
 文件头记录了所依据的上游版本（当前 1.27.0）。写版本号的目的是下次同步时知道从哪跳过来。
 

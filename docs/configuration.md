@@ -16,7 +16,9 @@
 ├── modify_dot_zshrc                       # 给 ~/.zshrc 注入标记区块
 ├── dot_config/
 │   ├── ghostty/config.tmpl                # → ~/.config/ghostty/config
-│   ├── starship.toml                      # → ~/.config/starship.toml
+│   ├── ghostty/themes/Dotgraft Ink        # 深色主题
+│   ├── ghostty/themes/Dotgraft Paper      # 浅色主题
+│   ├── starship.toml.tmpl                 # → ~/.config/starship.toml（按主题选调色板）
 │   └── zsh/
 │       ├── init.zsh                       # → ~/.config/zsh/init.zsh
 │       └── conf.d/
@@ -107,10 +109,10 @@ dotgraft reconfigure      # chezmoi init → 预览 → apply → 修复依赖
 `bootstrap.sh` 和 `dotgraft reconfigure` 会先用编号菜单询问主题和毛玻璃，再把答案通过 `--promptChoice` / `--promptBool` 传给 `chezmoi init`，所以不需要手打完整主题名。自动化时可以用：
 
 ```bash
-DOTGRAFT_THEME="GitHub Dark" DOTGRAFT_GLASS=false dotgraft reconfigure
+DOTGRAFT_THEME="Dotgraft Paper" DOTGRAFT_GLASS=false dotgraft reconfigure
 ```
 
-主题列表在三处保持一致：`.chezmoi.toml.tmpl`、`bootstrap.sh`、`dot_local/bin/executable_dotgraft`。新增主题时三处都要改。
+主题列表在三处保持一致：`.chezmoi.toml.tmpl`、`bootstrap.sh`、`dot_local/bin/executable_dotgraft`。新增主题时三处都要改；如果是自定义主题，还要把主题文件放进 `dot_config/ghostty/themes/`，并同步 `dotgraft` 卸载白名单和 `tests/smoke.sh`。
 
 ## 机器专属配置
 

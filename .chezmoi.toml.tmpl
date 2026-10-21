@@ -28,14 +28,13 @@
 {{-   end -}}
 {{- end -}}
 
-{{- /* 主题名必须是 Ghostty 内置主题的**准确**名称，否则渲染出的配置会校验失败。
-       可用 ghostty +list-themes 查看，tests/smoke.sh 会对这里每一项做校验。
-       两个容易写错的：是 "GitHub Light Default" 不是 "GitHub Light"；
-       是 "TokyoNight" 不是 "Tokyo Night"。 */ -}}
+{{- /* 主题名必须是 Ghostty 能解析的名称：内置主题，或 ~/.config/ghostty/themes/
+       下的自定义主题。Dotgraft Ink / Dotgraft Paper 由本仓库提供。
+       可用 ghostty +list-themes 查看内置主题；tests/smoke.sh 会校验这里每一项。 */ -}}
 {{- $theme := promptChoice
       "Ghostty 主题"
-      (list "Catppuccin Mocha" "Catppuccin Latte" "Catppuccin Frappe" "GitHub Dark" "GitHub Light Default" "TokyoNight")
-      "Catppuccin Mocha" -}}
+      (list "Dotgraft Ink" "Dotgraft Paper" "Catppuccin Mocha" "Catppuccin Latte" "Catppuccin Frappe" "GitHub Dark" "GitHub Light Default" "TokyoNight")
+      "Dotgraft Ink" -}}
 
 {{- /* 默认值跟系统版本走： macOS 26 起才支持 Ghostty 的原生毛玻璃。
        在更旧的 macOS 上默认 false，避免用户一路回车得到一个

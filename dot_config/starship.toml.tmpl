@@ -50,7 +50,19 @@ $cmd_duration\
 $line_break\
 $character"""
 
+{{- if eq .theme "Dotgraft Ink" }}
+palette = 'dotgraft_ink'
+{{- else if eq .theme "Dotgraft Paper" }}
+palette = 'dotgraft_paper'
+{{- else if eq .theme "Catppuccin Latte" }}
+palette = 'catppuccin_latte'
+{{- else if eq .theme "Catppuccin Frappe" }}
+palette = 'catppuccin_frappe'
+{{- else if eq .theme "GitHub Light Default" }}
+palette = 'catppuccin_latte'
+{{- else }}
 palette = 'catppuccin_mocha'
+{{- end }}
 
 [os]
 disabled = false
@@ -315,6 +327,63 @@ surface0 = "#363a4f"
 base = "#24273a"
 mantle = "#1e2030"
 crust = "#181926"
+
+
+[palettes.dotgraft_ink]
+rosewater = "#F0F7F2"
+flamingo = "#FF8A90"
+pink = "#E06C75"
+mauve = "#C99BEA"
+red = "#E06C75"
+maroon = "#B8525A"
+peach = "#F2B36B"
+yellow = "#E5C07B"
+green = "#8BD49C"
+teal = "#67D4C4"
+sky = "#8CE8DC"
+sapphire = "#7AA2F7"
+blue = "#7AA2F7"
+lavender = "#C99BEA"
+text = "#D8E3DA"
+subtext1 = "#C9D5CD"
+subtext0 = "#AEBDB3"
+overlay2 = "#8FA096"
+overlay1 = "#6F8177"
+overlay0 = "#5A6B61"
+surface2 = "#3F5147"
+surface1 = "#2E4A3E"
+surface0 = "#212A25"
+base = "#121816"
+mantle = "#0D1210"
+crust = "#080C0A"
+
+[palettes.dotgraft_paper]
+rosewater = "#9A5B4A"
+flamingo = "#B45B5B"
+pink = "#A64B8A"
+mauve = "#7A4E9E"
+red = "#9E2F3C"
+maroon = "#8F2A38"
+peach = "#8A4A14"
+yellow = "#6F5212"
+green = "#276B42"
+teal = "#167A78"
+sky = "#246F9E"
+sapphire = "#26518F"
+blue = "#2F5DA8"
+lavender = "#5A4A98"
+text = "#26302B"
+subtext1 = "#3C4A42"
+subtext0 = "#526157"
+overlay2 = "#6B7A70"
+overlay1 = "#84938A"
+overlay0 = "#9BA79F"
+surface2 = "#B7C4BA"
+surface1 = "#CDD8CF"
+surface0 = "#DDE6DF"
+base = "#F4F1E8"
+mantle = "#ECE8DE"
+crust = "#F4F1E8"
 
 [palettes.ayu_mirage]
 rosewater = "#ffdfb3"

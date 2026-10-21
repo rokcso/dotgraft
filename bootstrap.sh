@@ -25,6 +25,8 @@ DOTGRAFT_SOURCE="${DOTGRAFT_SOURCE:-${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi
 DOTGRAFT_CONFIG="${DOTGRAFT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/chezmoi.toml}"
 LEGACY_SOURCE="${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi"
 DOTGRAFT_THEMES=(
+  "Dotgraft Ink"
+  "Dotgraft Paper"
   "Catppuccin Mocha"
   "Catppuccin Latte"
   "Catppuccin Frappe"
@@ -344,7 +346,7 @@ printf '\n'
 
 theme_choice="${DOTGRAFT_THEME:-}"
 if [[ -z "$theme_choice" ]]; then
-  theme_choice="$(choose_theme "Catppuccin Mocha")"
+  theme_choice="$(choose_theme "Dotgraft Ink")"
 fi
 theme_is_valid "$theme_choice" || fail "无效主题：$theme_choice（可选：${DOTGRAFT_THEMES[*]}）"
 
