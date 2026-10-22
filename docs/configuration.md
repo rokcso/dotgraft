@@ -274,7 +274,7 @@ ghostty +validate-config --config-file=<(dotgraft chezmoi execute-template < dot
 
 | job | 环境 | 内容 |
 |---|---|---|
-| `lint` | ubuntu | `shellcheck`、`shfmt -d`、`zsh -n` |
+| `lint` | ubuntu | `shellcheck`、`shfmt -d`、`python3 tests/theme-contract.py`、`zsh -n` |
 | `render` | macos | 装 chezmoi、Ghostty 和 bats，跑 `bats tests/unit` + `tests/smoke.sh` |
 
 `render` 那条才是关键：它跑的就是用户安装时会走的同一条路径。模板写错、选配项写错、`.chezmoiignore` 漏了目录，都会在那里暴露。Ghostty 安装不再 `continue-on-error`，否则主题和配置校验会被静默跳过。CI 里的 `shfmt` 版本是固定的，避免 `@latest` 改变格式规则导致流水线漂移。
