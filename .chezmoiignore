@@ -6,6 +6,7 @@
 # 新增顶层目录时记得同步这里；tests/smoke.sh 会检查
 # `chezmoi managed` 里没有出现白名单之外的路径。
 README.md
+README.zh-CN.md
 LICENSE
 Brewfile
 bootstrap.sh

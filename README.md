@@ -1,30 +1,36 @@
 # Dotgraft
 
-Dotgraft 是一套由 [chezmoi](https://www.chezmoi.io) 管理的 macOS 终端配置：**Ghostty + Starship + zsh**。配置是版本化的文件，安装前可以预览，更新时可以查看差异，卸载前会先备份。
+English · [简体中文](README.zh-CN.md)
 
-![Dotgraft 在 Ghostty 中的效果预览](docs/images/dotgraft-preview.webp)
+A macOS terminal setup for **Ghostty + Starship + zsh**, managed with [chezmoi](https://www.chezmoi.io). Preview configuration changes before applying them, keep them in version control, and back up files before uninstalling.
 
-## 快速开始
+![Dotgraft running in Ghostty](docs/images/dotgraft-preview.webp)
+
+Ink (left), Paper (center), and Porcelain (right). The screenshot uses a simplified demonstration prompt.
+
+## Install
+
+Requires macOS 13 or later, Homebrew, and an internet connection. The configuration targets Ghostty 1.3 or later. Native glass requires macOS 26; older systems use numeric blur. Linux is not supported.
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/main/bootstrap.sh)
 ```
 
-脚本会检查环境、安装 chezmoi、询问三个选配问题、展示 diff，确认后才写入。
+The installer checks the environment, installs chezmoi, asks which tools and appearance settings to use, and shows a file-change summary before asking for confirmation.
 
 <details>
-<summary>固定 release / 非交互安装</summary>
+<summary>Install a release or run unattended</summary>
 
-固定 release：
+Pin the installation to a release:
 
 ```bash
 DOTGRAFT_REF=v0.1.0 \
   bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/v0.1.0/bootstrap.sh)
 ```
 
-`DOTGRAFT_REF` 会让 `chezmoi init` checkout 对应 tag；release 安装的 source 固定在 tag，日常 `dotgraft update` 不会跨版本更新。
+A tagged installation does not automatically advance to another release with `dotgraft update`.
 
-非交互安装：
+For unattended installation:
 
 ```bash
 DOTGRAFT_YES=1 \
@@ -34,91 +40,78 @@ DOTGRAFT_GLASS=true \
   bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/main/bootstrap.sh)
 ```
 
-也可以传参：`bootstrap.sh --yes --tools=fzf,zoxide --theme="Dotgraft Paper" --glass=false`。
+A local copy of the installer also accepts arguments:
+
+```bash
+bash bootstrap.sh --yes --tools=fzf,zoxide --theme="Dotgraft Paper" --glass=false
+```
 
 </details>
 
-## 特点
+After installation, run `exec zsh`. In Ghostty, press `Cmd+Shift+,` to reload the configuration.
 
-- **幂等**：`dotgraft apply` 跑多次结果一致。
-- **先看后改**：`dotgraft diff` 默认只列文件摘要，`--full` 才看逐行补丁。
-- **可更新**：`dotgraft update` 拉取上游、预览、应用，并修复依赖。
-- **独立 source**：使用 `~/.local/share/chezmoi-dotgraft` 和 `~/.config/dotgraft/chezmoi.toml`，不写入默认 chezmoi 配置。
-- **可撤销**：卸载前备份受管文件和已有配置；不完整的 `.zshrc` 区块会被拒绝处理。
+## Everyday commands
 
-## 常用命令
-
-| 命令 | 作用 |
+| Command | Purpose |
 |---|---|
-| `dotgraft status` | 当前选配、文件差异和版本 |
-| `dotgraft diff [--full]` | 查看将要发生的改动 |
-| `dotgraft apply` | 预览、确认、应用 |
-| `dotgraft update` | 拉取上游、预览、应用并修复依赖 |
-| `dotgraft reconfigure` | 重新选配 |
-| `dotgraft theme [ink\|paper\|porcelain\|list]` | 切换 Ghostty + Starship 主题 |
-| `dotgraft backup list` | 查看备份 |
-| `dotgraft restore <时间戳>` | 从备份恢复 |
-| `dotgraft doctor` | Dotgraft 环境自检 |
-| `dotgraft uninstall` | 备份后卸载 |
+| `dotgraft status` | Show selections, file changes, and version |
+| `dotgraft diff [--full]` | Preview a summary or the full patch |
+| `dotgraft apply` | Preview, confirm, and apply configuration |
+| `dotgraft update` | Pull upstream changes, apply them, and repair dependencies |
+| `dotgraft reconfigure` | Choose tools and appearance settings again |
+| `dotgraft theme paper` | Switch Ghostty and Starship to Paper |
+| `dotgraft backup list` | List backups |
+| `dotgraft restore <timestamp>` | Restore a backup |
+| `dotgraft doctor` | Check the Dotgraft environment |
+| `dotgraft uninstall` | Back up and remove managed configuration |
 
-完整命令、备份恢复和卸载边界见 [使用与维护](docs/usage.md)。安装后还会得到 `dotg` 短别名。
+The `dotg` alias is available when no existing command, function, or alias uses that name.
 
-## 主题
+## Themes and tools
 
-三套内置主题：
+Three matching Ghostty and Starship themes are included:
 
-- **Dotgraft Ink**：深色，默认
-- **Dotgraft Paper**：浅色暖光
-- **Dotgraft Porcelain**：浅色冷光
+- **Dotgraft Ink** — dark, the default
+- **Dotgraft Paper** — warm light
+- **Dotgraft Porcelain** — cool light
 
-```bash
-dotgraft theme            # 当前主题和可选主题
-dotgraft theme paper      # 切换
+Run `dotgraft theme` to list themes, or `dotgraft theme ink`, `paper`, or `porcelain` to switch.
+
+Optional tools are **fzf**, **zoxide**, **eza**, **bat**, and **yazi**. Deselecting a tool removes its optional configuration, not its installed Homebrew package.
+
+## What changes
+
+Dotgraft adds a marked block to `~/.zshrc` and manages its own zsh configuration, Ghostty configuration and themes, Starship configuration, and `~/.local/bin/dotgraft`. Put machine-specific shell settings in `~/.config/zsh/conf.d/90-local.zsh`; subsequent applies leave that file alone.
+
+It uses a separate chezmoi source and configuration:
+
+```text
+~/.local/share/chezmoi-dotgraft
+~/.config/dotgraft/chezmoi.toml
 ```
 
-Starship 会自动使用对应调色板。配色、对比度和切换细节见 [Themes](docs/themes.md)。
+The default chezmoi source/configuration, `~/.zprofile`, and `~/.zshenv` are not modified. Existing target files are backed up during installation; uninstall also backs up files before removing them. Backups live under `~/.config-backup/`.
 
-## 文件与安全
+Separate source directories do not prevent conflicts if another configuration manager owns the same target files. Review the installation summary first.
 
-- 不需要 `sudo`，不改 `/etc`，不修改 `~/.zprofile` 和 `~/.zshenv`。
-- `~/.zshrc` 只增加一小段标记区块；其余配置在 `~/.config/zsh/`、`~/.config/ghostty/`、`~/.config/starship.toml` 和 `~/.local/bin/dotgraft`。
-- 安装和卸载前会备份到 `~/.config-backup/<时间戳>/`。
-- 默认的 `~/.local/share/chezmoi` 和 `~/.config/chezmoi/` 不会被写入。
+## Documentation
 
-完整的文件落点和卸载安全边界见 [使用与维护](docs/usage.md)。
+The detailed guides below are currently in Chinese; English versions are being prepared.
 
-## 文档
-
-| 文档 | 内容 |
+| Guide | Contents |
 |---|---|
-| [使用与维护](docs/usage.md) | 日常命令、选配、备份恢复、卸载、本地开发 |
-| [配置架构](docs/configuration.md) | 仓库结构、chezmoi 属性、片段顺序、扩展方式 |
-| [Ghostty](docs/ghostty.md) | 配置项、macOS 覆盖文件、快捷键、验证 |
-| [Themes](docs/themes.md) | 三套主题、角色、对比度、Starship 联动 |
-| [Shell](docs/shell.md) | Starship、插件、CLI 工具、别名与补全 |
-| [排错](docs/troubleshooting.md) | 常见问题和诊断命令 |
-| [Changelog](CHANGELOG.md) | 版本变更 |
+| [Usage and maintenance](docs/usage.md) | Commands, backup, restore, uninstall, and local development |
+| [Configuration architecture](docs/configuration.md) | Source layout, templates, loading order, and tests |
+| [Ghostty](docs/ghostty.md) | Configuration, macOS overrides, shortcuts, and validation |
+| [Themes](docs/themes.md) | Palettes, contrast, and Starship integration |
+| [Shell](docs/shell.md) | Prompt, plugins, tools, aliases, and completion |
+| [Troubleshooting](docs/troubleshooting.md) | Common problems and diagnostics |
+| [Changelog](CHANGELOG.md) | Release history |
 
-## 环境要求
+CI checks shell syntax and formatting, theme contracts, unit tests, and smoke tests on macOS 14 and macOS latest. Release publishing also requires the macOS tests to pass.
 
-- macOS 13 及以上（Apple Silicon / Intel）
-- [Homebrew](https://brew.sh)
-- [Ghostty](https://ghostty.org) 1.3 及以上
-- 原生毛玻璃需要 macOS 26 及以上；更旧的系统使用数字模糊
-- 首次安装需要网络
+## Credits
 
-## 状态
+[Ghostty](https://ghostty.org) · [Starship](https://starship.rs) · [chezmoi](https://www.chezmoi.io) · [Maple Mono](https://github.com/subframe7536/maple-font) · [Catppuccin](https://github.com/catppuccin/catppuccin) · [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions) · [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting) · [zsh-completions](https://github.com/zsh-users/zsh-completions)
 
-当前版本见 `VERSION` 和 [CHANGELOG.md](CHANGELOG.md)。
-
-已支持安装、更新、选配、备份恢复、卸载和独立 chezmoi source。CI 覆盖 shell 静态检查、主题契约、bats 单元测试和 macOS 14 / latest 的 smoke 测试；打 tag 后，release workflow 会先在 macOS 跑完整测试，再创建 release。
-
-暂不支持 Linux：Ghostty 安装方式、字体路径和部分配置项不同，仓库没有可验证的 Linux 环境。
-
-## 致谢
-
-[Ghostty](https://ghostty.org) · [Starship](https://starship.rs) · [chezmoi](https://www.chezmoi.io) · [Maple Mono NF](https://github.com/subframe7536/maple-font) · [Catppuccin](https://github.com/catppuccin/catppuccin) · [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions) / [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting) / [zsh-completions](https://github.com/zsh-users/zsh-completions)
-
-## 许可
-
-[MIT](./LICENSE)
+Created by [rokcso](https://github.com/rokcso). [MIT license](LICENSE).
