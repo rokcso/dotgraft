@@ -19,6 +19,7 @@
 set -euo pipefail
 
 REPO_URL="${DOTGRAFT_REPO:-https://github.com/rokcso/dotgraft.git}"
+DOTGRAFT_REF="${DOTGRAFT_REF:-}"
 STAMP="$(date +%Y%m%d_%H%M%S)"
 BACKUP_DIR="$HOME/.config-backup/$STAMP"
 DOTGRAFT_SOURCE="${DOTGRAFT_SOURCE:-${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi-dotgraft}"
@@ -39,6 +40,16 @@ GHOSTTY_OVERRIDE="$HOME/Library/Application Support/com.mitchellh.ghostty/config
 GHOSTTY_OVERRIDE_MOVED=0
 GHOSTTY_OVERRIDE_SAVED=''
 
+ASSUME_YES=0
+if [[ "${DOTGRAFT_YES:-0}" == "1" || "${DOTGRAFT_YES:-0}" == "true" || "${DOTGRAFT_YES:-0}" == "yes" ]]; then
+  ASSUME_YES=1
+fi
+TOOLS_SET=0
+if [[ -n "${DOTGRAFT_TOOLS+x}" ]]; then
+  TOOLS_SET=1
+fi
+DOTGRAFT_TOOLS_ALLOWED=(fzf zoxide eza bat yazi)
+
 step() { printf '\n==> %s\n' "$*"; }
 note() { printf '    %s\n' "$*"; }
 warn() { printf '    ! %s\n' "$*" >&2; }
@@ -48,11 +59,70 @@ fail() {
 }
 
 confirm() {
+  if [[ "$ASSUME_YES" -eq 1 ]]; then
+    note "$1 [自动确认]"
+    return 0
+  fi
   local reply
   printf '    %s [y/N] ' "$1"
   read -r reply
   [[ "$reply" == [yY] ]]
 }
+
+usage() {
+  cat << 'USAGE'
+用法: bootstrap.sh [选项]
+
+  -y, --yes              非交互安装；未指定的选项使用默认值
+      --tools=a,b        启用的 CLI 工具（fzf,zoxide,eza,bat,yazi）
+      --theme=名称       Ghostty 主题
+      --glass=true|false 是否启用原生毛玻璃
+  -h, --help             显示帮助
+
+也可以使用环境变量：DOTGRAFT_YES、DOTGRAFT_TOOLS、DOTGRAFT_THEME、DOTGRAFT_GLASS、DOTGRAFT_REF。
+DOTGRAFT_REF 用于安装某个 release tag，例如 DOTGRAFT_REF=v0.1.0。
+USAGE
+}
+
+normalize_tools() {
+  local raw="$1" tool out=''
+  raw="${raw//,/ }"
+  raw="${raw//\// }"
+  for tool in $raw; do
+    if [[ " ${DOTGRAFT_TOOLS_ALLOWED[*]} " != *" $tool "* ]]; then
+      fail "未知 CLI 工具：$tool（可选：${DOTGRAFT_TOOLS_ALLOWED[*]}）"
+    fi
+    out="$out $tool"
+  done
+  printf '%s\n' "${out# }"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -y | --yes)
+      ASSUME_YES=1
+      shift
+      ;;
+    --tools=*)
+      DOTGRAFT_TOOLS="${1#*=}"
+      TOOLS_SET=1
+      shift
+      ;;
+    --theme=*)
+      DOTGRAFT_THEME="${1#*=}"
+      shift
+      ;;
+    --glass=*)
+      DOTGRAFT_GLASS="${1#*=}"
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *) fail "未知参数：$1。运行 bootstrap.sh --help 查看用法。" ;;
+  esac
+done
 
 # 所有 chezmoi 调用都走这里，和安装后的 dotgraft 命令保持同一套路径。
 chezmoi_dg() {
@@ -342,29 +412,62 @@ check_legacy_source
 backup_chezmoi_config
 
 step "选择要启用的组件"
-note "（主题/毛玻璃用编号菜单；CLI 工具由 chezmoi 勾选）"
-printf '\n'
+if [[ "$ASSUME_YES" -eq 1 ]]; then
+  note "非交互模式：未指定的选项使用默认值"
+else
+  note "（主题/毛玻璃用编号菜单；CLI 工具由 chezmoi 勾选）"
+  printf '\n'
+fi
 
 theme_choice="${DOTGRAFT_THEME:-}"
 if [[ -z "$theme_choice" ]]; then
-  theme_choice="$(choose_theme "Dotgraft Ink")"
+  if [[ "$ASSUME_YES" -eq 1 ]]; then
+    theme_choice="Dotgraft Ink"
+  else
+    theme_choice="$(choose_theme "Dotgraft Ink")"
+  fi
 fi
 theme_is_valid "$theme_choice" || fail "无效主题：$theme_choice（可选：${DOTGRAFT_THEMES[*]}）"
 
 glass_choice="${DOTGRAFT_GLASS:-}"
 if [[ -z "$glass_choice" ]]; then
-  glass_choice="$(choose_glass "$(default_glass)")"
+  if [[ "$ASSUME_YES" -eq 1 ]]; then
+    glass_choice="$(default_glass)"
+  else
+    glass_choice="$(choose_glass "$(default_glass)")"
+  fi
 fi
 case "$glass_choice" in
   true | false) ;;
   *) fail "无效 DOTGRAFT_GLASS：$glass_choice（应为 true 或 false）" ;;
 esac
 
-mkdir -p "$(dirname "$DOTGRAFT_SOURCE")" "$(dirname "$DOTGRAFT_CONFIG")"
-chezmoi_dg init "$REPO_URL" \
-  --promptChoice "Ghostty 主题=$theme_choice" \
+tools_choice=''
+if [[ "$TOOLS_SET" -eq 1 ]]; then
+  tools_choice="$(normalize_tools "${DOTGRAFT_TOOLS:-}")"
+elif [[ "$ASSUME_YES" -eq 1 ]]; then
+  tools_choice="${DOTGRAFT_TOOLS_ALLOWED[*]}"
+fi
+
+init_args=(
+  --promptChoice "Ghostty 主题=$theme_choice"
   --promptBool "启用 macOS 原生毛玻璃效果？（需要 macOS 26 及以上）=$glass_choice"
+)
+if [[ "$TOOLS_SET" -eq 1 || "$ASSUME_YES" -eq 1 ]]; then
+  tools_slash="$(printf '%s' "$tools_choice" | tr ' ' '/')"
+  init_args+=(--promptMultichoice "要启用哪些 CLI 工具？（空格勾选，回车确认）=$tools_slash")
+fi
+if [[ -n "$DOTGRAFT_REF" ]]; then
+  init_args+=(--tag "$DOTGRAFT_REF")
+fi
+
+mkdir -p "$(dirname "$DOTGRAFT_SOURCE")" "$(dirname "$DOTGRAFT_CONFIG")"
+chezmoi_dg init "$REPO_URL" "${init_args[@]}"
 verify_dotgraft_source
+
+if [[ -f "$DOTGRAFT_SOURCE/VERSION" ]]; then
+  note "版本: $(tr -d '\n' < "$DOTGRAFT_SOURCE/VERSION")"
+fi
 
 # ==============================================================================
 # 预览

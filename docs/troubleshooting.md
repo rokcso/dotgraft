@@ -326,6 +326,22 @@ dotgraft diff --full
 
 bootstrap 首次安装也只显示摘要，避免一屏都是新增文件内容。
 
+## 备份怎么恢复
+
+```bash
+dotgraft backup list
+dotgraft backup show <时间戳>
+dotgraft restore <时间戳>
+```
+
+卸载后命令不在 PATH 里时，运行备份内的 dotgraft：
+
+```bash
+~/.config-backup/<时间戳>/files/.local/bin/dotgraft restore <时间戳>
+```
+
+`restore` 会先备份当前状态，再恢复；`--pre-existing` 用于恢复安装前的原始文件，`--with-ghostty-override` 用于恢复 macOS Ghostty 覆盖配置。
+
 ## `dotgraft doctor` 里的 age / 1Password / Bitwarden 是什么
 
 `dotgraft doctor` 现在只检查 Dotgraft 自己的环境：macOS、Shell、Homebrew、chezmoi、独立 source/config、`.zshrc` 区块、受管文件、选配工具、Starship、Ghostty、字体和 Ghostty 覆盖文件。

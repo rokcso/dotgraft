@@ -27,6 +27,27 @@ bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/main/bootstr
 
 脚本会检查环境、安装 chezmoi、问你几个选配问题、展示完整 diff，确认后才落盘。
 
+安装固定 release 版本：
+
+```bash
+DOTGRAFT_REF=v0.1.0 \
+  bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/v0.1.0/bootstrap.sh)
+```
+
+`DOTGRAFT_REF` 会让 `chezmoi init` checkout 对应的 tag；release 安装的 source 是固定 tag，日常 `dotgraft update` 不会自动跨版本更新。
+
+非交互安装（CI / 新机器 / 自动化）：
+
+```bash
+DOTGRAFT_YES=1 \
+DOTGRAFT_TOOLS="fzf,zoxide,eza,bat,yazi" \
+DOTGRAFT_THEME="Dotgraft Ink" \
+DOTGRAFT_GLASS=true \
+  bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/main/bootstrap.sh)
+```
+
+也可以传参：`bootstrap.sh --yes --tools=fzf,zoxide --theme="Dotgraft Paper" --glass=false`。
+
 Dotgraft 使用**独立 source/config**，不会占用默认的 `~/.local/share/chezmoi`，也不会改你的 `~/.config/chezmoi`：
 
 ```
@@ -115,11 +136,14 @@ dotgraft reconfigure
 | `dotgraft update` | 拉取上游、预览、应用，并运行 `dotgraft deps` |
 | `dotgraft deps` | 无条件安装/修复 Homebrew 依赖（不受 `run_onchange` 缓存影响） |
 | `dotgraft theme [ink\|paper\|porcelain\|list]` | 只切换 Ghostty + Starship 主题，不重新询问工具 |
+| `dotgraft backup [list\|show <时间戳>]` | 查看已有备份 |
+| `dotgraft restore <时间戳>` | 从备份恢复；恢复前会再备份当前状态 |
 | `dotgraft reconfigure` | 重新选配，并修复依赖 |
 | `dotgraft edit <文件>` | 编辑受管文件的仓库副本 |
 | `dotgraft cd` | 进入 Dotgraft 的 chezmoi 源目录 |
 | `dotgraft chezmoi <args>` | 在 Dotgraft 的 source/config 上执行 chezmoi 子命令 |
 | `dotgraft doctor` | Dotgraft 专用环境自检；完整 chezmoi 诊断用 `dotgraft chezmoi doctor` |
+| `dotgraft version` | 显示版本和 source commit |
 | `dotgraft uninstall` | 卸载 |
 
 直接运行 `chezmoi` 会使用你自己的默认 source/config，不会看到 Dotgraft；需要底层命令时用 `dotgraft chezmoi ...`。
@@ -168,9 +192,25 @@ exec zsh
 
 Ghostty 里再按 `Cmd + Shift + ,` 重载。完整配色、对比度和 Starship 联动见 [Themes](docs/themes.md)。
 
+## 版本与发布
+
+当前版本见 `VERSION`，变更见 [CHANGELOG.md](CHANGELOG.md)。
+
+```bash
+dotgraft version
+```
+
+Release tag 使用 `vX.Y.Z`，GitHub Actions 会：
+
+- 校验 tag 与 `VERSION` 一致
+- 运行主题契约检查
+- 打包源码 tarball 和 bootstrap
+- 生成 `SHA256SUMS`
+- 发布 GitHub Release
+
 ## 会改动哪些文件
 
-受管目标七处，另有 chezmoi 源目录、备份目录和 Ghostty 覆盖文件。不用 `sudo`，不动 `/etc`，**`~/.zprofile` 和 `~/.zshenv` 永不修改**。
+受管目标集中在家目录的几处路径，另有 chezmoi 源目录、备份目录和 Ghostty 覆盖文件。不用 `sudo`，不动 `/etc`，**`~/.zprofile` 和 `~/.zshenv` 永不修改**。
 
 | 路径 | 内容 | 方式 |
 |---|---|---|
@@ -210,6 +250,40 @@ dotgraft uninstall
 
 注意 `chezmoi purge` 单独跑是不够的——它按设计会保留所有目标文件。
 
+## 备份与恢复
+
+安装、卸载和 `restore` 会把备份写到：
+
+```text
+~/.config-backup/<时间戳>/
+```
+
+查看：
+
+```bash
+dotgraft backup list
+dotgraft backup show <时间戳>
+```
+
+恢复：
+
+```bash
+dotgraft restore <时间戳>
+dotgraft restore <时间戳> --pre-existing   # 安装前的原始文件
+dotgraft restore <时间戳> --yes            # 非交互
+```
+
+`restore` 会先列出要恢复的文件，并在恢复前把当前状态再备份一份。
+恢复 shell 配置后执行 `exec zsh`，Ghostty 按 `Cmd + Shift + ,` 重载。
+
+如果已经卸载、`dotgraft` 命令不在 PATH 里，可以直接运行备份中的命令：
+
+```bash
+~/.config-backup/<时间戳>/files/.local/bin/dotgraft restore <时间戳>
+```
+
+需要恢复 bootstrap 移开的 macOS Ghostty 覆盖文件时，加 `--with-ghostty-override`。
+
 ## 文档
 
 | 文档 | 内容 |
@@ -217,6 +291,7 @@ dotgraft uninstall
 | [配置架构](docs/configuration.md) | 仓库结构、chezmoi 属性、片段加载顺序、怎么加新片段和新的选配项 |
 | [Ghostty](docs/ghostty.md) | 每一项配置的解释、macOS 覆盖文件陷阱、主题与快捷键、验证命令 |
 | [Themes](docs/themes.md) | Dotgraft Ink / Paper / Porcelain 的品牌主题、色板、对比度和切换方式 |
+| [Changelog](CHANGELOG.md) | 版本变更记录 |
 | [Shell](docs/shell.md) | Starship、三个插件、五个 CLI 工具、别名与函数 |
 | [排错](docs/troubleshooting.md) | 装了没效果、补全不生效、字体缺图标、卸载不干净等 |
 

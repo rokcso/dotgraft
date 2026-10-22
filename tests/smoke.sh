@@ -543,6 +543,48 @@ fi
 assert_dir "$cli2/.local/share/chezmoi-dotgraft"
 assert_contains "$cli2/.config/chezmoi/chezmoi.toml" "USER_CHEZMOI_CONFIG"
 assert_contains "$cli2/.local/share/chezmoi/user-file" "USER_DEFAULT_SOURCE"
+version_out="$(dotgraft_script_at "$cli2" version 2>&1 || true)"
+expected_version="$(tr -d '\n' < "$REPO_DIR/VERSION")"
+if [[ "$version_out" == *"dotgraft $expected_version"* ]]; then
+  ok "dotgraft version 显示 $expected_version"
+else
+  bad "dotgraft version 没有显示 $expected_version"
+fi
+
+# ------------------------------------------------------------------------------
+# backup / restore
+# ------------------------------------------------------------------------------
+step "场景: backup 与 restore"
+backup_home="$TMP/cli-backup"
+setup_cli_home "$backup_home"
+dotgraft_script_at "$backup_home" uninstall <<< 'y' > /dev/null 2>&1 || true
+backup_dir="$(find "$backup_home/.config-backup" -maxdepth 1 -mindepth 1 -type d -name '20*' | sort | tail -1)"
+if [[ -n "$backup_dir" ]]; then
+  ok "uninstall 创建了备份目录"
+else
+  bad "uninstall 没有创建备份目录"
+fi
+backup_ts="$(basename "$backup_dir")"
+backup_list_out="$(dotgraft_script_at "$backup_home" backup list 2>&1 || true)"
+if [[ "$backup_list_out" == *"$backup_ts"* ]]; then
+  ok "backup list 显示时间戳"
+else
+  bad "backup list 没有显示时间戳"
+fi
+backup_show_out="$(dotgraft_script_at "$backup_home" backup show "$backup_ts" 2>&1 || true)"
+if [[ "$backup_show_out" == *".config/ghostty/config"* ]]; then
+  ok "backup show 列出受管文件"
+else
+  bad "backup show 没有列出受管文件"
+fi
+if dotgraft_script_at "$backup_home" restore "$backup_ts" --yes > /dev/null 2>&1; then
+  ok "restore 执行成功"
+else
+  bad "restore 执行失败"
+fi
+assert_file "$backup_home/.config/ghostty/config"
+assert_file "$backup_home/.local/bin/dotgraft"
+assert_contains "$backup_home/.zshrc" "# >>> dotgraft >>>"
 
 # ------------------------------------------------------------------------------
 # 卸载：.zshrc 是软链接时保留链接
@@ -626,6 +668,29 @@ exit 0
 EOF
 chmod +x "$fakebin/brew"
 
+step "场景: 非交互 bootstrap"
+boot_src="$TMP/boot-src"
+nonint_home="$TMP/nonint-home"
+mkdir -p "$boot_src" "$nonint_home"
+(cd "$REPO_DIR" && tar --exclude=.git --exclude=refs --exclude=PRE-INSTALL-STATE.md -cf - .) |
+  (cd "$boot_src" && tar -xf -)
+git -C "$boot_src" init -q
+git -C "$boot_src" add -A
+git -C "$boot_src" -c user.email=test@example.com -c user.name=test commit -qm test
+if HOME="$nonint_home" PATH="$fakebin:$PATH" DOTGRAFT_REPO="$boot_src" \
+  FAKE_BREW_LOG="$TMP/nonint-brew.log" \
+  bash "$boot_src/bootstrap.sh" --yes --tools=fzf --theme='Dotgraft Paper' --glass=false < /dev/null > /dev/null 2>&1; then
+  ok "非交互 bootstrap 正常退出"
+else
+  bad "非交互 bootstrap 非零退出"
+fi
+assert_contains "$nonint_home/.config/dotgraft/chezmoi.toml" 'tools = ["fzf"]'
+assert_contains "$nonint_home/.config/dotgraft/chezmoi.toml" 'theme = "Dotgraft Paper"'
+assert_contains "$nonint_home/.config/dotgraft/chezmoi.toml" 'glass = false'
+assert_contains "$nonint_home/.config/ghostty/config" 'theme = Dotgraft Paper'
+assert_file "$nonint_home/.config/ghostty/themes/Dotgraft Paper"
+assert_file "$nonint_home/.local/bin/dotgraft"
+
 step "场景: bootstrap 拒绝非 Dotgraft 源目录"
 boot_home="$TMP/boot-home"
 mkdir -p "$boot_home/.local/share/chezmoi-dotgraft" "$boot_home/.local/share/chezmoi"
@@ -693,6 +758,11 @@ if [[ "$doctor_out" == *"Dotgraft source"* ]] && [[ "$doctor_out" == *"Dotgraft 
 else
   bad "dotgraft doctor 缺少 Dotgraft 专用检查"
 fi
+if [[ "$doctor_out" == *"active theme"* ]] && [[ "$doctor_out" == *"Starship palette"* ]] && [[ "$doctor_out" == *"shell integration"* ]]; then
+  ok "dotgraft doctor 检查主题、palette 和 shell 集成"
+else
+  bad "dotgraft doctor 缺少主题/palette/shell 集成检查"
+fi
 
 # ------------------------------------------------------------------------------
 # 幂等：同一个 HOME 连跑两次 apply，内容不应变化
@@ -725,6 +795,8 @@ fi
 
 # 仓库自身的文件不该被铺进 $HOME（.chezmoiignore 回归检查）
 assert_no_file "$idem/README.md"
+assert_no_file "$idem/VERSION"
+assert_no_file "$idem/CHANGELOG.md"
 assert_no_file "$idem/Brewfile"
 assert_no_file "$idem/bootstrap.sh"
 assert_no_file "$idem/docs"

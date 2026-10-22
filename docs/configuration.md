@@ -11,6 +11,8 @@
 ├── .dotgraft-source                        # source 归属标记
 ├── .gitignore
 ├── Brewfile                               # 基础依赖，始终安装
+├── VERSION                                # 版本号
+├── CHANGELOG.md                           # 变更记录
 ├── bootstrap.sh                           # 一行安装入口
 ├── run_onchange_install-packages.sh.tmpl  # 装基础依赖 + 勾选组件
 ├── modify_dot_zshrc                       # 给 ~/.zshrc 注入标记区块
@@ -214,6 +216,9 @@ dotgraft deps                    # 安装/修复依赖
 dotgraft theme                   # 查看/切换主题
 dotgraft theme paper             # 切到暖光浅色
 dotgraft theme porcelain         # 切到冷光浅色
+dotgraft version                 # 版本和 source commit
+dotgraft backup list             # 查看备份
+dotgraft restore <时间戳>        # 恢复备份
 dotgraft update                  # 拉上游、预览、应用、修依赖
 dotgraft chezmoi edit --apply ~/.zshrc   # 在 Dotgraft source 上编辑并立即生效
 dotgraft cd                      # 进源目录，用 git 正常提交
@@ -275,6 +280,7 @@ ghostty +validate-config --config-file=<(dotgraft chezmoi execute-template < dot
 | job | 环境 | 内容 |
 |---|---|---|
 | `lint` | ubuntu | `shellcheck`、`shfmt -d`、`python3 tests/theme-contract.py`、`zsh -n` |
-| `render` | macos | 装 chezmoi、Ghostty 和 bats，跑 `bats tests/unit` + `tests/smoke.sh` |
+| `render` | macOS 14 / latest | 装 chezmoi、Ghostty 和 bats，跑 `bats tests/unit` + `tests/smoke.sh` |
+| `release` | ubuntu（tag push） | 校验 `VERSION`、主题契约、打包 tarball + `SHA256SUMS`、创建 GitHub Release |
 
 `render` 那条才是关键：它跑的就是用户安装时会走的同一条路径。模板写错、选配项写错、`.chezmoiignore` 漏了目录，都会在那里暴露。Ghostty 安装不再 `continue-on-error`，否则主题和配置校验会被静默跳过。CI 里的 `shfmt` 版本是固定的，避免 `@latest` 改变格式规则导致流水线漂移。

@@ -82,6 +82,14 @@ source_commit() {
   git -C "$DOTGRAFT_SOURCE" log -1 --format='%h %s' 2> /dev/null || printf 'unknown'
 }
 
+cmd_version() {
+  local version='unknown'
+  if [[ -f "$DOTGRAFT_SOURCE/VERSION" ]]; then
+    version="$(tr -d '\n' < "$DOTGRAFT_SOURCE/VERSION")"
+  fi
+  printf 'dotgraft %s (%s)\n' "$version" "$(source_commit)"
+}
+
 default_glass() {
   local major
   major="$(sw_vers -productVersion 2> /dev/null | cut -d. -f1)"
@@ -692,6 +700,62 @@ cmd_doctor() {
     doctor_row fail "Ghostty config" "不存在"
   fi
 
+  local theme_count=0 theme_name theme_path
+  for theme_name in "Dotgraft Ink" "Dotgraft Paper" "Dotgraft Porcelain"; do
+    theme_path="$HOME/.config/ghostty/themes/$theme_name"
+    if [[ -f "$theme_path" ]]; then
+      theme_count=$((theme_count + 1))
+    else
+      doctor_row fail "theme file" "缺少：$theme_path"
+    fi
+  done
+  if [[ "$theme_count" -eq 3 ]]; then
+    doctor_row ok "theme files" "3/3"
+  fi
+
+  local active_theme='' expected_palette='' active_palette=''
+  if [[ -f "$HOME/.config/ghostty/config" ]]; then
+    active_theme="$(sed -n 's/^theme = //p' "$HOME/.config/ghostty/config" | head -1 | tr -d '"')"
+  fi
+  if [[ -n "$active_theme" ]]; then
+    doctor_row ok "active theme" "$active_theme"
+    case "$active_theme" in
+      "Dotgraft Ink") expected_palette=dotgraft_ink ;;
+      "Dotgraft Paper") expected_palette=dotgraft_paper ;;
+      "Dotgraft Porcelain") expected_palette=dotgraft_porcelain ;;
+      "Catppuccin Latte" | "GitHub Light Default") expected_palette=catppuccin_latte ;;
+      "Catppuccin Frappe") expected_palette=catppuccin_frappe ;;
+      *) expected_palette=catppuccin_mocha ;;
+    esac
+
+    if [[ -f "$HOME/.config/starship.toml" ]]; then
+      active_palette="$(sed -n "s/^palette = ['\"]\(.*\)['\"]$/\1/p" "$HOME/.config/starship.toml" | head -1)"
+    fi
+    if [[ "$active_palette" == "$expected_palette" ]]; then
+      doctor_row ok "Starship palette" "$active_palette"
+    else
+      doctor_row warn "Starship palette" "当前 ${active_palette:-未知}，期望 $expected_palette（运行 dotgraft apply）"
+    fi
+  else
+    doctor_row warn "active theme" "Ghostty 配置里没有 theme"
+  fi
+
+  if HOME="$HOME" zsh -i -c '[[ "$(whence -w dotg 2>/dev/null)" == "dotg: alias" && "${_comps[dotg]:-}" == "_dotgraft" ]]' > /dev/null 2>&1; then
+    doctor_row ok "shell integration" "dotg alias + completion"
+  else
+    doctor_row warn "shell integration" "需要 exec zsh，或检查 .config/zsh/conf.d/80-dotgraft.zsh"
+  fi
+
+  local backup_count latest_backup
+  backup_count="$(list_backups | wc -l | tr -d ' ')"
+  latest_backup="$(list_backups | tail -1)"
+  latest_backup="${latest_backup##*/}"
+  if [[ "$backup_count" -gt 0 ]]; then
+    doctor_row ok "backups" "$backup_count（最近 $latest_backup）"
+  else
+    doctor_row warn "backups" "暂无备份"
+  fi
+
   local ghostty_override="$HOME/Library/Application Support/com.mitchellh.ghostty/config"
   if [[ -s "$ghostty_override" ]]; then
     doctor_row warn "Ghostty override" "存在，可能覆盖主题：$ghostty_override"
@@ -721,6 +785,195 @@ cmd_doctor() {
     warn "检查完成：存在需要修复的问题。"
   fi
   return "$DOCTOR_FAILED"
+}
+
+# ==============================================================================
+# backup / restore
+# ==============================================================================
+backup_root() {
+  printf '%s\n' "$HOME/.config-backup"
+}
+
+list_backups() {
+  local root
+  root="$(backup_root)"
+  [[ -d "$root" ]] || return 0
+  find "$root" -maxdepth 1 -mindepth 1 -type d -name '20*' -print 2> /dev/null | sort || true
+}
+
+cmd_backup() {
+  local sub="${1:-list}"
+  [[ $# -gt 0 ]] && shift
+  case "$sub" in
+    list | "") cmd_backup_list ;;
+    show) cmd_backup_show "$@" ;;
+    *)
+      die "用法: dotgraft backup [list|show <时间戳>]"
+      ;;
+  esac
+}
+
+cmd_backup_list() {
+  local dirs dir timestamp files pre config override
+  dirs="$(list_backups)"
+  if [[ -z "$dirs" ]]; then
+    note "没有找到备份：$(backup_root)"
+    return 0
+  fi
+
+  printf '    %-20s %-8s %-12s %-7s %s\n' "时间戳" "files" "pre-existing" "config" "override"
+  while IFS= read -r dir; do
+    [[ -n "$dir" ]] || continue
+    timestamp="$(basename "$dir")"
+    files=0
+    if [[ -d "$dir/files" ]]; then
+      files="$(find "$dir/files" -type f 2> /dev/null | wc -l | tr -d ' ')"
+    fi
+    pre=0
+    if [[ -d "$dir/pre-existing" ]]; then
+      pre="$(find "$dir/pre-existing" -type f 2> /dev/null | wc -l | tr -d ' ')"
+    fi
+    config="no"
+    if [[ -f "$dir/chezmoi.toml" || -f "$dir/chezmoi.toml.before-dotgraft" ]]; then
+      config="yes"
+    fi
+    override="no"
+    if [[ -f "$dir/ghostty-config.macos-override" ]]; then
+      override="yes"
+    fi
+    printf '    %-20s %-8s %-12s %-7s %s\n' "$timestamp" "$files" "$pre" "$config" "$override"
+  done <<< "$dirs"
+}
+
+cmd_backup_show() {
+  local timestamp="${1:-}" dir file rel size target
+  [[ -n "$timestamp" ]] || die "用法: dotgraft backup show <时间戳>"
+  dir="$(backup_root)/$(basename "$timestamp")"
+  [[ -d "$dir" ]] || die "备份不存在：$dir"
+
+  note "备份: $dir"
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    rel="${file#"$dir"/}"
+    size="$(stat -f '%z' "$file" 2> /dev/null || printf '?')"
+    printf '    %8s  %s' "$size" "$rel"
+    if [[ "$file" == *.symlink ]]; then
+      target="$(cat "$file" 2> /dev/null || true)"
+      printf '  -> %s' "$target"
+    fi
+    printf '\n'
+  done < <(find "$dir" -type f -print | sort)
+}
+
+cmd_restore() {
+  local timestamp='' source_kind='files' assume_yes=0 with_override=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --pre-existing)
+        source_kind='pre-existing'
+        shift
+        ;;
+      --with-ghostty-override)
+        with_override=1
+        shift
+        ;;
+      -y | --yes)
+        assume_yes=1
+        shift
+        ;;
+      -*)
+        die "未知参数: $1。用法: dotgraft restore <时间戳> [--pre-existing] [--with-ghostty-override] [--yes]"
+        ;;
+      *)
+        [[ -z "$timestamp" ]] || die "只能指定一个备份时间戳"
+        timestamp="$1"
+        shift
+        ;;
+    esac
+  done
+
+  [[ -n "$timestamp" ]] || die "用法: dotgraft restore <时间戳> [--pre-existing] [--with-ghostty-override] [--yes]"
+  local backup
+  backup="$(backup_root)/$(basename "$timestamp")"
+  [[ -d "$backup" ]] || die "备份不存在：$backup"
+
+  local source_root="$backup/$source_kind"
+  [[ -d "$source_root" ]] || die "该备份没有 $source_kind 快照：$source_root"
+
+  local files
+  files="$(find "$source_root" -type f ! -name '*.symlink' -print | sort)"
+  [[ -n "$files" ]] || die "该快照没有可恢复文件：$source_root"
+
+  note "将从 $source_root 恢复："
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    printf '      %s\n' "${file#"$source_root"/}"
+  done <<< "$files"
+
+  if [[ "$assume_yes" -eq 0 ]]; then
+    confirm "确认恢复这些文件？" || {
+      printf '    已取消。\n'
+      return 0
+    }
+  fi
+
+  # 恢复前先把当前状态再备份一份，避免 restore 本身不可逆。
+  local safety
+  safety="$(backup_root)/$(date +%Y%m%d_%H%M%S)_before-restore"
+  mkdir -p "$safety/files"
+  local file rel target
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    rel="${file#"$source_root"/}"
+    target="$HOME/$rel"
+    backup_file "$target" "$safety/files" || die "无法备份当前文件：$target"
+  done <<< "$files"
+
+  if [[ -f "$DOTGRAFT_CONFIG" ]]; then
+    cp -p "$DOTGRAFT_CONFIG" "$safety/chezmoi.toml" || warn "无法备份当前 chezmoi 配置"
+  fi
+
+  local restored=0 link_target
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    rel="${file#"$source_root"/}"
+    target="$HOME/$rel"
+    mkdir -p "$(dirname "$target")"
+
+    if [[ -f "$file.symlink" ]]; then
+      link_target="$(cat "$file.symlink")" || die "无法读取软链接目标：$file.symlink"
+      rm -f "$target"
+      ln -s "$link_target" "$target" || die "无法恢复软链接：$target"
+    else
+      cp -p "$file" "$target" || die "无法恢复文件：$target"
+    fi
+    restored=$((restored + 1))
+  done <<< "$files"
+
+  # 选配答案：uninstall 备份叫 chezmoi.toml，bootstrap 备份叫 chezmoi.toml.before-dotgraft。
+  local config_backup
+  for config_backup in "$backup/chezmoi.toml" "$backup/chezmoi.toml.before-dotgraft"; do
+    if [[ -f "$config_backup" ]]; then
+      mkdir -p "$(dirname "$DOTGRAFT_CONFIG")"
+      cp -p "$config_backup" "$DOTGRAFT_CONFIG" || die "无法恢复 chezmoi 配置：$DOTGRAFT_CONFIG"
+      break
+    fi
+  done
+
+  if [[ "$with_override" -eq 1 ]]; then
+    local override="$HOME/Library/Application Support/com.mitchellh.ghostty/config"
+    if [[ -f "$backup/ghostty-config.macos-override" ]]; then
+      mkdir -p "$(dirname "$override")"
+      cp -p "$backup/ghostty-config.macos-override" "$override" || die "无法恢复 Ghostty 覆盖配置：$override"
+      note "已恢复 Ghostty 覆盖配置"
+    else
+      warn "该备份没有 ghostty-config.macos-override"
+    fi
+  fi
+
+  note "已恢复 $restored 个文件"
+  note "恢复前状态已备份到: $safety"
+  note "开新终端或 exec zsh；Ghostty 按 Cmd+Shift+, 重载。"
 }
 
 # ==============================================================================
@@ -907,11 +1160,15 @@ dotgraft —— 终端配置管理
   update        拉取上游更新并应用（含依赖）
   deps          无条件安装/修复 Homebrew 依赖
   theme [名称]  切换 Ghostty + Starship 主题（ink / paper / porcelain / list）
+  backup [list|show <时间戳>]  查看已有备份
+  restore <时间戳> [--pre-existing] [--with-ghostty-override] [--yes]
+                从备份恢复，恢复前会自动再备份当前状态
   reconfigure   重新选择组件（工具 / 主题 / 毛玻璃）
   edit <文件>   编辑某个受管文件的仓库副本
   cd            进入 Dotgraft 的 chezmoi 源目录
   chezmoi ...   在 Dotgraft 的 source/config 上执行 chezmoi 子命令
   doctor        检查环境
+  version       显示版本和 source commit
   uninstall     卸载（备份受管文件，保留 Homebrew 包）
 
 首次安装不走这里，用：
@@ -933,11 +1190,14 @@ main() {
     update) cmd_update ;;
     deps) cmd_deps ;;
     theme) cmd_theme "$@" ;;
+    backup) cmd_backup "$@" ;;
+    restore) cmd_restore "$@" ;;
     reconfigure) cmd_reconfigure ;;
     edit) cmd_edit "$@" ;;
     cd) cmd_cd ;;
     chezmoi) cmd_chezmoi "$@" ;;
     doctor) cmd_doctor ;;
+    version | --version | -V) cmd_version ;;
     uninstall) cmd_uninstall ;;
     help | -h | --help) cmd_help ;;
     *)

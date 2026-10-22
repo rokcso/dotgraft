@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Package and publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify version matches tag
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\n' < VERSION)"
+          test "v${version}" = "${GITHUB_REF_NAME}"
+
+      - name: Verify theme contract
+        run: python3 tests/theme-contract.py
+
+      - name: Package release assets
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          prefix="dotgraft-${tag}"
+          mkdir -p dist
+          git archive --format=tar.gz --prefix="${prefix}/" -o "dist/${prefix}.tar.gz" HEAD
+          cp bootstrap.sh "dist/${prefix}-bootstrap.sh"
+          (cd dist && sha256sum "${prefix}.tar.gz" "${prefix}-bootstrap.sh" > SHA256SUMS)
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes

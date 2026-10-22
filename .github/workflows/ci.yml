@@ -65,8 +65,12 @@ jobs:
   #   chezmoi init（回答选配问题）→ apply → 断言落盘结果
   # 模板写错、选配项写错、忽略清单漏了目录，都会在这里暴露。
   render:
-    name: Render templates and validate
-    runs-on: macos-latest
+    name: Render templates and validate (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 

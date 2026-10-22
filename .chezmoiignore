@@ -9,6 +9,8 @@ README.md
 LICENSE
 Brewfile
 bootstrap.sh
+VERSION
+CHANGELOG.md
 docs/
 tests/
 .github/
