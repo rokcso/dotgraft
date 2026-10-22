@@ -35,7 +35,7 @@ dotgraft_detect_language() {
   # macOS shells may expose no meaningful locale. Read only the first preferred
   # UI language; a secondary Chinese language must not override the primary one.
   if command -v defaults > /dev/null 2>&1; then
-    dotgraft_preferred="$(defaults read -g AppleLanguages 2> /dev/null | awk '
+    dotgraft_preferred="$({ defaults read -g AppleLanguages 2> /dev/null || true; } | awk '
       /\(/ { next }
       { gsub(/[",[:space:]]/, ""); if (length && $0 != ")") { print; exit } }
     ')"

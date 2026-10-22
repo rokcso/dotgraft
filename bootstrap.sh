@@ -1,22 +1,91 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Dotgraft —— 安装入口
+# Dotgraft — installation entry point
 # ==============================================================================
-# 用法：
+# Usage:
 #   bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/main/bootstrap.sh)
 #
-# 这个脚本只负责「从零到能跑」：准备 chezmoi、问几个选配问题、
-# 展示改动、落盘。装好之后日常操作交给 dotgraft 命令：
-#   dotgraft update        更新到最新
-#   dotgraft deps          修复依赖
-#   dotgraft reconfigure   改选配
-#   dotgraft uninstall     卸载
+# This script only handles the "from zero to runnable" part: prepare chezmoi,
+# ask a few optional questions, show the changes, and apply them. Day-to-day
+# operations after installation go through the dotgraft command:
+#   dotgraft update        Update to the latest version
+#   dotgraft deps          Repair dependencies
+#   dotgraft reconfigure   Change selections
+#   dotgraft uninstall     Uninstall
 #
-# 测试时可以覆盖仓库地址：
+# For testing, the repository URL can be overridden:
 #   DOTGRAFT_REPO=/path/to/local/repo bash bootstrap.sh
 # ==============================================================================
 
 set -euo pipefail
+
+# ==============================================================================
+# Language detection (embedded from scripts/lib/language.sh for standalone use)
+# ==============================================================================
+# BEGIN DOTGRAFT_LANGUAGE_EMBEDDED
+# Return en/zh for supported locale names; return nothing for unknown names.
+dotgraft_locale_language() {
+  case "$1" in
+    zh | zh_* | zh-* | Chinese*) printf 'zh\n' ;;
+    en | en_* | en-* | English*) printf 'en\n' ;;
+  esac
+}
+
+# Explicit overrides win, followed by locale variables and macOS preferences.
+# Do not change LC_ALL/LANG: external tools retain their own locale behavior.
+dotgraft_detect_language() {
+  if [ -n "${DOTGRAFT_LANG:-}" ]; then
+    case "$DOTGRAFT_LANG" in
+      en | zh) printf '%s\n' "$DOTGRAFT_LANG" ;;
+      *) printf 'en\n' ;;
+    esac
+    return
+  fi
+
+  # The first populated locale is authoritative. An unsupported locale falls
+  # back to English rather than a lower-priority, potentially stale variable.
+  dotgraft_locale="${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}"
+  case "$dotgraft_locale" in
+    '' | C | POSIX | C.UTF-8 | C.utf8) ;;
+    *)
+      dotgraft_language="$(dotgraft_locale_language "$dotgraft_locale")"
+      printf '%s\n' "${dotgraft_language:-en}"
+      return
+      ;;
+  esac
+
+  # macOS shells may expose no meaningful locale. Read only the first preferred
+  # UI language; a secondary Chinese language must not override the primary one.
+  if command -v defaults > /dev/null 2>&1; then
+    dotgraft_preferred="$({ defaults read -g AppleLanguages 2> /dev/null || true; } | awk '
+      /\(/ { next }
+      { gsub(/[",[:space:]]/, ""); if (length && $0 != ")") { print; exit } }
+    ')"
+    dotgraft_language="$(dotgraft_locale_language "$dotgraft_preferred")"
+    printf '%s\n' "${dotgraft_language:-en}"
+  else
+    printf 'en\n'
+  fi
+}
+# END DOTGRAFT_LANGUAGE_EMBEDDED
+
+# Resolve once and export so every descendant uses the same language.
+DOTGRAFT_LANG="$(dotgraft_detect_language)"
+export DOTGRAFT_LANG
+
+# Print the selected language's text. The first two arguments are the English
+# and Chinese format strings; remaining arguments are passed safely to printf.
+dg_text() {
+  local en="$1" zh="$2" fmt
+  shift 2
+  if [[ "$DOTGRAFT_LANG" == "zh" ]]; then
+    fmt="$zh"
+  else
+    fmt="$en"
+  fi
+  # shellcheck disable=SC2059 # Format strings are trusted literals in this script.
+  printf "$fmt" "$@"
+}
 
 REPO_URL="${DOTGRAFT_REPO:-https://github.com/rokcso/dotgraft.git}"
 DOTGRAFT_REF="${DOTGRAFT_REF:-}"
@@ -54,13 +123,13 @@ step() { printf '\n==> %s\n' "$*"; }
 note() { printf '    %s\n' "$*"; }
 warn() { printf '    ! %s\n' "$*" >&2; }
 fail() {
-  printf '\n错误: %s\n' "$*" >&2
+  printf '\n%s: %s\n' "$(dg_text 'Error' '错误')" "$*" >&2
   exit 1
 }
 
 confirm() {
   if [[ "$ASSUME_YES" -eq 1 ]]; then
-    note "$1 [自动确认]"
+    note "$(dg_text '%s [auto-confirmed]' '%s [自动确认]' "$1")"
     return 0
   fi
   local reply
@@ -70,8 +139,17 @@ confirm() {
 }
 
 usage() {
-  cat << 'USAGE'
-用法: bootstrap.sh [选项]
+  dg_text 'Usage: bootstrap.sh [options]
+
+  -y, --yes              Non-interactive install; unspecified options use defaults
+      --tools=a,b        Enable CLI tools (fzf,zoxide,eza,bat,yazi)
+      --theme=NAME       Ghostty theme
+      --glass=true|false Enable native glass
+  -h, --help             Show this help
+
+You can also use environment variables: DOTGRAFT_YES, DOTGRAFT_TOOLS, DOTGRAFT_THEME, DOTGRAFT_GLASS, DOTGRAFT_REF.
+Use DOTGRAFT_REF to install a release tag, for example DOTGRAFT_REF=v0.1.0.
+' '用法: bootstrap.sh [选项]
 
   -y, --yes              非交互安装；未指定的选项使用默认值
       --tools=a,b        启用的 CLI 工具（fzf,zoxide,eza,bat,yazi）
@@ -81,7 +159,7 @@ usage() {
 
 也可以使用环境变量：DOTGRAFT_YES、DOTGRAFT_TOOLS、DOTGRAFT_THEME、DOTGRAFT_GLASS、DOTGRAFT_REF。
 DOTGRAFT_REF 用于安装某个 release tag，例如 DOTGRAFT_REF=v0.1.0。
-USAGE
+'
 }
 
 normalize_tools() {
@@ -90,7 +168,8 @@ normalize_tools() {
   raw="${raw//\// }"
   for tool in $raw; do
     if [[ " ${DOTGRAFT_TOOLS_ALLOWED[*]} " != *" $tool "* ]]; then
-      fail "未知 CLI 工具：${tool}（可选：${DOTGRAFT_TOOLS_ALLOWED[*]}）"
+      fail "$(dg_text 'Unknown CLI tool: %s (available: %s)' '未知 CLI 工具：%s（可选：%s）' \
+        "$tool" "${DOTGRAFT_TOOLS_ALLOWED[*]}")"
     fi
     out="$out $tool"
   done
@@ -120,11 +199,12 @@ while [[ $# -gt 0 ]]; do
       usage
       exit 0
       ;;
-    *) fail "未知参数：$1。运行 bootstrap.sh --help 查看用法。" ;;
+    *) fail "$(dg_text 'Unknown argument: %s. Run bootstrap.sh --help for usage.' '未知参数：%s。运行 bootstrap.sh --help 查看用法。' "$1")" ;;
   esac
 done
 
-# 所有 chezmoi 调用都走这里，和安装后的 dotgraft 命令保持同一套路径。
+# All chezmoi calls go through here so they use the same paths as the installed
+# dotgraft command.
 chezmoi_dg() {
   chezmoi \
     --source "$DOTGRAFT_SOURCE" \
@@ -146,17 +226,18 @@ default_glass() {
 
 choose_theme() {
   local default="${1:-Catppuccin Mocha}" i choice marker
-  printf '\n选择 Ghostty 主题：\n' >&2
+  dg_text '\nChoose a Ghostty theme:\n' '\n选择 Ghostty 主题：\n' >&2
   for i in "${!DOTGRAFT_THEMES[@]}"; do
     marker=""
     if [[ "${DOTGRAFT_THEMES[$i]}" == "$default" ]]; then
-      marker="（默认）"
+      marker="$(dg_text ' (default)' '（默认）')"
     fi
     printf '  %d) %s%s\n' "$((i + 1))" "${DOTGRAFT_THEMES[$i]}" "$marker" >&2
   done
 
   while true; do
-    printf '输入编号 [1-%d]（回车使用默认）: ' "${#DOTGRAFT_THEMES[@]}" >&2
+    dg_text 'Enter a number [1-%d] (press Enter for default): ' '输入编号 [1-%d]（回车使用默认）: ' \
+      "${#DOTGRAFT_THEMES[@]}" >&2
     if ! read -r choice; then
       printf '%s\n' "$default"
       return 0
@@ -169,26 +250,26 @@ choose_theme() {
       printf '%s\n' "${DOTGRAFT_THEMES[10#$choice - 1]}"
       return 0
     fi
-    printf '  无效编号，请重试。\n' >&2
+    dg_text '  Invalid number, please try again.\n' '  无效编号，请重试。\n' >&2
   done
 }
 
 choose_glass() {
   local default="${1:-false}" choice marker
-  printf '\n毛玻璃效果：\n' >&2
+  dg_text '\nGlass effect:\n' '\n毛玻璃效果：\n' >&2
   marker=""
   if [[ "$default" == "true" ]]; then
-    marker="（默认）"
+    marker="$(dg_text ' (default)' '（默认）')"
   fi
-  printf '  1) 原生毛玻璃（macOS 26+）%s\n' "$marker" >&2
+  printf '  1) %s%s\n' "$(dg_text 'Native glass (macOS 26+)' '原生毛玻璃（macOS 26+）')" "$marker" >&2
   marker=""
   if [[ "$default" == "false" ]]; then
-    marker="（默认）"
+    marker="$(dg_text ' (default)' '（默认）')"
   fi
-  printf '  2) 数字模糊%s\n' "$marker" >&2
+  printf '  2) %s%s\n' "$(dg_text 'Numeric blur' '数字模糊')" "$marker" >&2
 
   while true; do
-    printf '输入编号 [1-2]（回车使用默认）: ' >&2
+    dg_text 'Enter a number [1-2] (press Enter for default): ' '输入编号 [1-2]（回车使用默认）: ' >&2
     if ! read -r choice; then
       printf '%s\n' "$default"
       return 0
@@ -206,7 +287,7 @@ choose_glass() {
         printf '%s\n' "$default"
         return 0
         ;;
-      *) printf '  无效编号，请重试。\n' >&2 ;;
+      *) dg_text '  Invalid number, please try again.\n' '  无效编号，请重试。\n' >&2 ;;
     esac
   done
 }
@@ -221,14 +302,16 @@ theme_is_valid() {
   return 1
 }
 
-# 安装中途失败/被 Ctrl-C 时，把已经移开的 Ghostty 覆盖文件放回去。
-# apply 成功后会手动把 GHOSTTY_OVERRIDE_MOVED 置 0。
+# If installation fails midway or receives Ctrl-C, put back any Ghostty override
+# file that was already moved aside. After a successful apply,
+# GHOSTTY_OVERRIDE_MOVED is manually reset to 0.
 cleanup() {
   local status=$?
   if [[ "$GHOSTTY_OVERRIDE_MOVED" -eq 1 ]]; then
     if [[ -n "$GHOSTTY_OVERRIDE_SAVED" && -e "$GHOSTTY_OVERRIDE_SAVED" ]]; then
       mv "$GHOSTTY_OVERRIDE_SAVED" "$GHOSTTY_OVERRIDE" 2> /dev/null || true
-      printf '\n    安装未完成，已恢复 Ghostty 覆盖配置。\n' >&2
+      dg_text '\n    Installation incomplete; restored the Ghostty override configuration.\n' \
+        '\n    安装未完成，已恢复 Ghostty 覆盖配置。\n' >&2
     fi
   fi
   return "$status"
@@ -236,26 +319,47 @@ cleanup() {
 trap cleanup EXIT
 
 # ==============================================================================
-# 环境检查
+# Environment checks
 # ==============================================================================
-step "检查环境"
+step "$(dg_text 'Checking environment' '检查环境')"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  fail "目前只支持 macOS。Ghostty 的安装方式、字体路径和几个配置项在 Linux 上都不同，而这个仓库没有 Linux 环境可验证，所以没有贸然声明支持。如果你的机器是 Linux，欢迎到 issues 说明发行版和遇到的问题：https://github.com/rokcso/dotgraft/issues"
+  fail "$(dg_text 'Only macOS is supported at the moment. Ghostty installation, font paths, and several configuration options differ on Linux, and this repository has no Linux environment for verification, so support has not been claimed. If your machine runs Linux, feel free to open an issue with your distribution and what went wrong: https://github.com/rokcso/dotgraft/issues' '目前只支持 macOS。Ghostty 的安装方式、字体路径和几个配置项在 Linux 上都不同，而这个仓库没有 Linux 环境可验证，所以没有贸然声明支持。如果你的机器是 Linux，欢迎到 issues 说明发行版和遇到的问题：https://github.com/rokcso/dotgraft/issues')"
 fi
-note "macOS ✓"
+note "$(dg_text 'macOS ✓' 'macOS ✓')"
 
-command -v brew > /dev/null 2>&1 || fail "未找到 Homebrew。请先安装：https://brew.sh"
+command -v brew > /dev/null 2>&1 || fail "$(dg_text 'Homebrew not found. Please install it first: https://brew.sh' '未找到 Homebrew。请先安装：https://brew.sh')"
 note "Homebrew ✓ ($(brew --prefix))"
 
-command -v git > /dev/null 2>&1 || fail "未找到 git。请先运行：xcode-select --install"
+command -v git > /dev/null 2>&1 || fail "$(dg_text 'git not found. Please run: xcode-select --install' '未找到 git。请先运行：xcode-select --install')"
 note "git ✓"
 
 # ==============================================================================
-# 说明将要做什么
+# Explain what will happen
 # ==============================================================================
-cat << 'PLAN'
+dg_text '
+    This installation does four things:
 
+      1. Install chezmoi (if it is not already installed)
+      2. Ask three optional questions: which CLI tools to enable, the Ghostty
+         theme, and whether to use native glass
+      3. Show the diff for every file that will change and ask for confirmation
+      4. Back up existing configuration, apply the files, and install Homebrew
+         dependencies
+
+    Locations that will be touched:
+      ~/.zshrc                          Append a small marked block at the end
+      ~/.config/zsh/                    zsh configuration
+      ~/.config/ghostty/config          Terminal configuration
+      ~/.config/starship.toml           Prompt configuration
+      ~/.local/bin/dotgraft             The dotgraft command
+      ~/.config/dotgraft/chezmoi.toml   Dotgraft-specific selection answers
+      ~/.local/share/chezmoi-dotgraft   Dotgraft-specific chezmoi source directory
+      ~/.config-backup/<timestamp>/     Backup of existing configuration
+
+    It does not touch ~/.zprofile or ~/.zshenv, does not use sudo, and does not
+    modify /etc.
+' '
     这次安装会做四件事：
 
       1. 安装 chezmoi（如果还没有）
@@ -274,22 +378,22 @@ cat << 'PLAN'
       ~/.config-backup/<时间戳>/        已有配置的备份
 
     不会碰 ~/.zprofile 和 ~/.zshenv，不用 sudo，不修改 /etc。
-PLAN
+'
 
-confirm "继续？" || {
-  printf '\n已取消。\n'
+confirm "$(dg_text 'Continue?' '继续？')" || {
+  dg_text '\nCancelled.\n' '\n已取消。\n'
   exit 0
 }
 
 # ==============================================================================
 # chezmoi
 # ==============================================================================
-step "准备 chezmoi"
+step "$(dg_text 'Preparing chezmoi' '准备 chezmoi')"
 
 if command -v chezmoi > /dev/null 2>&1; then
-  note "已安装（$(chezmoi --version | head -1)）"
+  note "$(dg_text 'Installed (%s)' '已安装（%s）' "$(chezmoi --version | head -1)")"
 else
-  note "未安装，通过 Homebrew 安装"
+  note "$(dg_text 'Not installed; installing via Homebrew' '未安装，通过 Homebrew 安装')"
   brew install chezmoi
 fi
 
@@ -301,61 +405,84 @@ source_looks_like_dotgraft() {
     grep -q 'Dotgraft' "$src/.chezmoi.toml.tmpl"
 }
 
-# Dotgraft 使用独立 source。chezmoi init 在 source 已有内容时不会 clone，
-# 所以先确认目标目录为空，或者已经是一个 Dotgraft 仓库。
+# Dotgraft uses a separate source. chezmoi init does not clone when the source
+# already has content, so first make sure the target directory is empty or is
+# already a Dotgraft repository.
 ensure_source_available() {
   if [[ -d "$DOTGRAFT_SOURCE" && -n "$(ls -A "$DOTGRAFT_SOURCE" 2> /dev/null || true)" ]]; then
     if source_looks_like_dotgraft "$DOTGRAFT_SOURCE"; then
-      note "检测到已有 Dotgraft 源目录，继续更新：$DOTGRAFT_SOURCE"
+      note "$(dg_text 'Existing Dotgraft source detected; continuing with update: %s' '检测到已有 Dotgraft 源目录，继续更新：%s' "$DOTGRAFT_SOURCE")"
     else
-      fail "Dotgraft 源目录已存在，且不像 Dotgraft：$DOTGRAFT_SOURCE
+      local manual_backup
+      manual_backup="$DOTGRAFT_SOURCE.before-dotgraft.$(date +%Y%m%d_%H%M%S)"
+      fail "$(dg_text 'The Dotgraft source directory already exists but does not look like Dotgraft: %s
+
+      chezmoi init does not clone a new repository when the source directory
+      already has content; it would apply the dotfiles inside directly. To
+      avoid accidental changes, the installer has stopped.
+
+      Back up and move that directory first:
+        mv "%s" "%s"
+      Then run bootstrap.sh again.' 'Dotgraft 源目录已存在，且不像 Dotgraft：%s
 
       chezmoi init 在源目录已有内容时不会 clone 新仓库，继续执行会
       直接应用里面的 dotfiles。为避免误操作，已停止。
 
       请先备份并移开该目录：
-        mv \"$DOTGRAFT_SOURCE\" \"$DOTGRAFT_SOURCE.before-dotgraft.$(date +%Y%m%d_%H%M%S)\"
-      然后重新运行 bootstrap.sh。"
+        mv "%s" "%s"
+      然后重新运行 bootstrap.sh。' "$DOTGRAFT_SOURCE" "$DOTGRAFT_SOURCE" "$manual_backup")"
     fi
   fi
 }
 
-# 旧版本把 dotgraft 装进了默认 source。换成独立 source 后，
-# 如果检测到旧布局，先提示卸载/移开，避免两套配置同时生效。
+# Older versions installed dotgraft into the default source. After switching to
+# a separate source, detect the old layout and ask the user to uninstall or move
+# it first so two configurations do not take effect at the same time.
 check_legacy_source() {
   if [[ -d "$DOTGRAFT_SOURCE" && -n "$(ls -A "$DOTGRAFT_SOURCE" 2> /dev/null || true)" ]]; then
     return 0
   fi
   [[ -d "$LEGACY_SOURCE" && -n "$(ls -A "$LEGACY_SOURCE" 2> /dev/null || true)" ]] || return 0
   source_looks_like_dotgraft "$LEGACY_SOURCE" || return 0
-  fail "检测到旧版 Dotgraft 安装在默认 source：$LEGACY_SOURCE
+  local manual_backup
+  manual_backup="$LEGACY_SOURCE.before-dotgraft.$(date +%Y%m%d_%H%M%S)"
+  fail "$(dg_text 'Legacy Dotgraft installation detected in the default source: %s
 
-      新版使用独立 source：${DOTGRAFT_SOURCE}。
+      The new version uses a separate source: %s.
+      Uninstall it with the old command first:
+        dotgraft uninstall
+      Or move the old source manually:
+        mv "%s" "%s"
+      Then run bootstrap.sh again.' '检测到旧版 Dotgraft 安装在默认 source：%s
+
+      新版使用独立 source：%s。
       请先用旧版命令卸载：
         dotgraft uninstall
       或手动移开旧 source：
-        mv \"$LEGACY_SOURCE\" \"$LEGACY_SOURCE.before-dotgraft.$(date +%Y%m%d_%H%M%S)\"
-      然后重新运行 bootstrap.sh。"
+        mv "%s" "%s"
+      然后重新运行 bootstrap.sh。' "$LEGACY_SOURCE" "$DOTGRAFT_SOURCE" "$LEGACY_SOURCE" "$manual_backup")"
 }
 
 verify_dotgraft_source() {
   source_looks_like_dotgraft "$DOTGRAFT_SOURCE" ||
-    fail "chezmoi init 之后源目录仍不像 Dotgraft：${DOTGRAFT_SOURCE}。已停止，请检查仓库地址和网络。"
+    fail "$(dg_text 'The source directory still does not look like Dotgraft after chezmoi init: %s. Stopped; check the repository URL and network.' 'chezmoi init 之后源目录仍不像 Dotgraft：%s。已停止，请检查仓库地址和网络。' "$DOTGRAFT_SOURCE")"
 }
 
-# chezmoi init 会重新渲染配置模板，覆盖已有的 chezmoi.toml。
-# 它不在 managed 列表里，所以要在 init 之前单独备份。
+# chezmoi init re-renders the configuration template and overwrites an existing
+# chezmoi.toml. It is not in the managed list, so back it up separately before
+# init.
 backup_chezmoi_config() {
   local file="$DOTGRAFT_CONFIG"
   [[ -f "$file" ]] || return 0
   mkdir -p "$BACKUP_DIR"
   cp -p "$file" "$BACKUP_DIR/chezmoi.toml.before-dotgraft" 2> /dev/null ||
-    fail "无法备份已有 Dotgraft chezmoi.toml，已停止：$file"
-  note "已备份已有 chezmoi.toml 到 $BACKUP_DIR/chezmoi.toml.before-dotgraft"
+    fail "$(dg_text 'Could not back up the existing Dotgraft chezmoi.toml; stopped: %s' '无法备份已有 Dotgraft chezmoi.toml，已停止：%s' "$file")"
+  note "$(dg_text 'Backed up existing chezmoi.toml to %s' '已备份已有 chezmoi.toml 到 %s' "$BACKUP_DIR/chezmoi.toml.before-dotgraft")"
 }
 
-# 备份单个目标；软链接会额外记录 .symlink，内容是它指向的路径。
-# 这样卸载/恢复时不会把用户原来的链接误当成普通文件。
+# Back up a single target; symlinks additionally get a .symlink record whose
+# content is the path they point to. This prevents uninstall/restore from
+# mistaking a user's original link for a regular file.
 backup_existing_file() {
   local src="$1" dest_root="$2" rel target
   [[ -e "$src" || -L "$src" ]] || return 0
@@ -363,29 +490,30 @@ backup_existing_file() {
   mkdir -p "$dest_root/$(dirname "$rel")"
 
   if [[ -L "$src" ]]; then
-    target="$(readlink "$src")" || fail "无法读取软链接，已停止：$src"
+    target="$(readlink "$src")" || fail "$(dg_text 'Could not read symlink; stopped: %s' '无法读取软链接，已停止：%s' "$src")"
     printf '%s\n' "$target" > "$dest_root/$rel.symlink" ||
-      fail "无法备份软链接信息，已停止：$src"
+      fail "$(dg_text 'Could not back up symlink information; stopped: %s' '无法备份软链接信息，已停止：%s' "$src")"
     if [[ -f "$src" ]]; then
       cp -Lp "$src" "$dest_root/$rel" 2> /dev/null ||
         cp -L "$src" "$dest_root/$rel" ||
-        fail "无法备份软链接内容，已停止：$src"
+        fail "$(dg_text 'Could not back up symlink contents; stopped: %s' '无法备份软链接内容，已停止：%s' "$src")"
     fi
     return 0
   fi
 
   cp -p "$src" "$dest_root/$rel" 2> /dev/null ||
-    fail "无法备份已有文件，已停止：$src"
+    fail "$(dg_text 'Could not back up existing file; stopped: %s' '无法备份已有文件，已停止：%s' "$src")"
 }
 
-# 备份所有“安装前已经存在”的目标文件。
-# chezmoi 对未受管目标不会提示，会直接覆盖；没有这一步，
-# 用户原来的 Ghostty / Starship / zsh 配置会被静默替换。
+# Back up every target that already exists before installation. chezmoi does
+# not prompt for unmanaged targets and would overwrite them directly; without
+# this step, the user's existing Ghostty / Starship / zsh configuration would be
+# silently replaced.
 backup_existing_targets() {
   local f count=0 managed_files
   mkdir -p "$BACKUP_DIR/pre-existing"
   if ! managed_files="$(chezmoi_dg managed --include=files --path-style=absolute 2> /dev/null)"; then
-    fail "无法读取 chezmoi 受管文件列表，已停止。请先运行 chezmoi doctor。"
+    fail "$(dg_text 'Could not read the chezmoi managed file list; stopped. Run chezmoi doctor first.' '无法读取 chezmoi 受管文件列表，已停止。请先运行 chezmoi doctor。')"
   fi
   while IFS= read -r f; do
     [[ -n "$f" ]] || continue
@@ -400,22 +528,22 @@ backup_existing_targets() {
   fi
 
   if [[ "$count" -gt 0 ]]; then
-    note "已备份 $count 个已存在的目标文件到 $BACKUP_DIR/pre-existing"
+    note "$(dg_text 'Backed up %s existing target files to %s' '已备份 %s 个已存在的目标文件到 %s' "$count" "$BACKUP_DIR/pre-existing")"
   fi
 }
 
 # ==============================================================================
-# 选配问答 + 拉取配置
+# Optional questions + fetch configuration
 # ==============================================================================
 ensure_source_available
 check_legacy_source
 backup_chezmoi_config
 
-step "选择要启用的组件"
+step "$(dg_text 'Choosing components to enable' '选择要启用的组件')"
 if [[ "$ASSUME_YES" -eq 1 ]]; then
-  note "非交互模式：未指定的选项使用默认值"
+  note "$(dg_text 'Non-interactive mode: unspecified options use defaults' '非交互模式：未指定的选项使用默认值')"
 else
-  note "（主题/毛玻璃用编号菜单；CLI 工具由 chezmoi 勾选）"
+  note "$(dg_text '(Theme/glass use numbered menus; CLI tools use chezmoi checkboxes)' '（主题/毛玻璃用编号菜单；CLI 工具由 chezmoi 勾选）')"
   printf '\n'
 fi
 
@@ -427,7 +555,7 @@ if [[ -z "$theme_choice" ]]; then
     theme_choice="$(choose_theme "Dotgraft Ink")"
   fi
 fi
-theme_is_valid "$theme_choice" || fail "无效主题：${theme_choice}（可选：${DOTGRAFT_THEMES[*]}）"
+theme_is_valid "$theme_choice" || fail "$(dg_text 'Invalid theme: %s (available: %s)' '无效主题：%s（可选：%s）' "$theme_choice" "${DOTGRAFT_THEMES[*]}")"
 
 glass_choice="${DOTGRAFT_GLASS:-}"
 if [[ -z "$glass_choice" ]]; then
@@ -439,7 +567,7 @@ if [[ -z "$glass_choice" ]]; then
 fi
 case "$glass_choice" in
   true | false) ;;
-  *) fail "无效 DOTGRAFT_GLASS：${glass_choice}（应为 true 或 false）" ;;
+  *) fail "$(dg_text 'Invalid DOTGRAFT_GLASS: %s (must be true or false)' '无效 DOTGRAFT_GLASS：%s（应为 true 或 false）' "$glass_choice")" ;;
 esac
 
 tools_choice=''
@@ -449,13 +577,22 @@ elif [[ "$ASSUME_YES" -eq 1 ]]; then
   tools_choice="${DOTGRAFT_TOOLS_ALLOWED[*]}"
 fi
 
+# chezmoi accepts overrides for prompts that the checked-out template does not
+# use. Supply both languages so current templates (DOTGRAFT_BILINGUAL_PROMPTS_V1)
+# get labels matching the selected language, while older release tags that only
+# know the Chinese labels still receive the right answers.
 init_args=(
+  --promptChoice "Ghostty theme=$theme_choice"
   --promptChoice "Ghostty 主题=$theme_choice"
+  --promptBool "Enable native macOS glass? (Requires macOS 26 or later)=$glass_choice"
   --promptBool "启用 macOS 原生毛玻璃效果？（需要 macOS 26 及以上）=$glass_choice"
 )
 if [[ "$TOOLS_SET" -eq 1 || "$ASSUME_YES" -eq 1 ]]; then
   tools_slash="$(printf '%s' "$tools_choice" | tr ' ' '/')"
-  init_args+=(--promptMultichoice "要启用哪些 CLI 工具？（空格勾选，回车确认）=$tools_slash")
+  init_args+=(
+    --promptMultichoice "Which CLI tools should be enabled? (Space to select, Enter to confirm)=$tools_slash"
+    --promptMultichoice "要启用哪些 CLI 工具？（空格勾选，回车确认）=$tools_slash"
+  )
 fi
 if [[ -n "$DOTGRAFT_REF" ]]; then
   init_args+=(--tag "$DOTGRAFT_REF")
@@ -466,92 +603,113 @@ chezmoi_dg init "$REPO_URL" "${init_args[@]}"
 verify_dotgraft_source
 
 if [[ -f "$DOTGRAFT_SOURCE/VERSION" ]]; then
-  note "版本: $(tr -d '\n' < "$DOTGRAFT_SOURCE/VERSION")"
+  note "$(dg_text 'Version: %s' '版本: %s' "$(tr -d '\n' < "$DOTGRAFT_SOURCE/VERSION")")"
 fi
 
 # ==============================================================================
-# 预览
+# Preview
 # ==============================================================================
-step "将要发生的改动"
+step "$(dg_text 'Changes to be applied' '将要发生的改动')"
 
 status_output="$(chezmoi_dg status --exclude=scripts 2> /dev/null || true)"
 if [[ -z "$status_output" ]]; then
-  note "没有待应用的文件改动，已经是最新的。"
+  note "$(dg_text 'No file changes to apply; already up to date.' '没有待应用的文件改动，已经是最新的。')"
 else
   change_count="$(printf '%s\n' "$status_output" | grep -c . || true)"
-  note "将改动 $change_count 项："
+  note "$(dg_text '%s change(s) will be made:' '将改动 %s 项：' "$change_count")"
   printf '%s\n' "$status_output" | sed 's/^/      /'
   printf '\n'
-  note "首次安装大多是新建文件，完整 diff 可在安装后用 dotgraft diff --full 查看。"
-  confirm "应用以上改动？" || {
-    printf '\n已取消，未应用配置。\n'
+  note "$(dg_text 'Most first-time installations create new files; run dotgraft diff --full after installation to see the full diff.' '首次安装大多是新建文件，完整 diff 可在安装后用 dotgraft diff --full 查看。')"
+  confirm "$(dg_text 'Apply these changes?' '应用以上改动？')" || {
+    dg_text '\nCancelled; no configuration was applied.\n' '\n已取消，未应用配置。\n'
     exit 0
   }
 fi
 
 # ==============================================================================
-# 备份已有配置
+# Back up existing configuration
 # ==============================================================================
-step "备份已有配置"
+step "$(dg_text 'Backing up existing configuration' '备份已有配置')"
 backup_existing_targets
 
 # ==============================================================================
-# macOS 上 Ghostty 的覆盖文件
+# Ghostty override file on macOS
 # ==============================================================================
-# Ghostty 会先读 ~/.config/ghostty/config，再读 Application Support 里的那份，
-# 后者逐键覆盖前者。不处理掉它，主题和字体会被静默顶掉。
-# 放在用户确认 apply 之后再移，避免“取消安装却已经改了系统”。
+# Ghostty reads ~/.config/ghostty/config first, then the copy in Application
+# Support, which overrides the former key by key. If it is not handled, the
+# theme and font would be silently overridden. Move it only after the user
+# confirms apply, so cancelling installation does not already change the system.
 if [[ -s "$GHOSTTY_OVERRIDE" ]]; then
-  step "发现 macOS 上的 Ghostty 覆盖配置"
+  step "$(dg_text 'Found a Ghostty override configuration on macOS' '发现 macOS 上的 Ghostty 覆盖配置')"
   note "$GHOSTTY_OVERRIDE"
   printf '\n'
   sed 's/^/      | /' "$GHOSTTY_OVERRIDE"
   printf '\n'
-  note "这份文件会在 dotgraft 的配置之后加载，逐条覆盖主题和字体。"
-  if confirm "备份并移开它？"; then
+  note "$(dg_text 'This file loads after the Dotgraft configuration and overrides the theme and font settings one by one.' '这份文件会在 dotgraft 的配置之后加载，逐条覆盖主题和字体。')"
+  if confirm "$(dg_text 'Back up and move it aside?' '备份并移开它？')"; then
     mkdir -p "$BACKUP_DIR"
     cp -p "$GHOSTTY_OVERRIDE" "$BACKUP_DIR/ghostty-config.macos-override" ||
-      fail "无法备份 $GHOSTTY_OVERRIDE"
+      fail "$(dg_text 'Could not back up %s' '无法备份 %s' "$GHOSTTY_OVERRIDE")"
 
     if [[ -e "$GHOSTTY_OVERRIDE.before-dotgraft" ]]; then
-      # 已经有一份更早的原配置，不要覆盖它；把当前这份放到本次备份里。
+      # An earlier original configuration already exists; do not overwrite it.
+      # Put the current file in this run's backup instead.
       GHOSTTY_OVERRIDE_SAVED="$BACKUP_DIR/ghostty-config.replaced"
       mv "$GHOSTTY_OVERRIDE" "$GHOSTTY_OVERRIDE_SAVED"
-      note "保留已有 .before-dotgraft，当前文件备份到 $GHOSTTY_OVERRIDE_SAVED"
+      note "$(dg_text 'Keeping the existing .before-dotgraft; current file backed up to %s' '保留已有 .before-dotgraft，当前文件备份到 %s' "$GHOSTTY_OVERRIDE_SAVED")"
     else
       GHOSTTY_OVERRIDE_SAVED="$GHOSTTY_OVERRIDE.before-dotgraft"
       mv "$GHOSTTY_OVERRIDE" "$GHOSTTY_OVERRIDE_SAVED"
-      note "已备份到 $BACKUP_DIR/ghostty-config.macos-override"
+      note "$(dg_text 'Backed up to %s' '已备份到 %s' "$BACKUP_DIR/ghostty-config.macos-override")"
     fi
     GHOSTTY_OVERRIDE_MOVED=1
   else
-    note "保留不动。注意：Ghostty 的主题和字体可能不会变成你选的样子。"
+    note "$(dg_text 'Left in place. Note: the Ghostty theme and font may not look the way you selected.' '保留不动。注意：Ghostty 的主题和字体可能不会变成你选的样子。')"
   fi
 fi
 
 # ==============================================================================
-# 落盘
+# Apply
 # ==============================================================================
-step "应用配置"
+step "$(dg_text 'Applying configuration' '应用配置')"
 chezmoi_dg apply
-# apply 成功后再失败（例如后面的提示）不应该恢复覆盖文件。
+# After a successful apply, a later failure (for example in the checks below)
+# must not restore the override file.
 GHOSTTY_OVERRIDE_MOVED=0
 
 # ==============================================================================
-# 验证新 shell 中的别名与补全
+# Verify aliases and completion in the new shell
 # ==============================================================================
-step "验证 Shell 配置"
+step "$(dg_text 'Verifying shell configuration' '验证 Shell 配置')"
 if HOME="$HOME" zsh -i -c '[[ "$(whence -w dotg 2>/dev/null)" == "dotg: alias" && "${_comps[dotg]:-}" == "_dotgraft" ]]' > /dev/null 2>&1; then
-  note "dotg 别名与补全已验证"
+  note "$(dg_text 'dotg alias and completion verified' 'dotg 别名与补全已验证')"
 else
-  warn "dotg 别名/补全未通过验证；请执行 exec zsh 后运行 dotg status 检查"
+  warn "$(dg_text 'The dotg alias/completion did not pass verification; run exec zsh and then dotg status to check' 'dotg 别名/补全未通过验证；请执行 exec zsh 后运行 dotg status 检查')"
 fi
 
 # ==============================================================================
-# 完成
+# Done
 # ==============================================================================
-cat << 'DONE'
+# shellcheck disable=SC2016 # Backticks in the completion instructions are literal.
+dg_text '
+==> Done
 
+    The current window will not load the new configuration automatically. Next steps:
+
+      1. Run `exec zsh` (or open a new terminal)
+      2. Verify: `dotg status`, `dotg <Tab>`
+      3. If Ghostty is running, press Cmd+Shift+, to reload the configuration
+
+    Common commands afterward:
+
+      dotgraft status        Show the current state
+      dotgraft diff          Preview after editing configuration
+      dotgraft update        Pull upstream updates
+      dotgraft deps          Repair dependencies that were not installed
+      dotgraft reconfigure   Change selections (asks the same questions again)
+      dotgraft uninstall     Uninstall
+
+' '
 ==> 完成
 
     当前窗口不会自动加载新配置。下一步：
@@ -569,13 +727,13 @@ cat << 'DONE'
       dotgraft reconfigure   改选配（重新问那几个问题）
       dotgraft uninstall     卸载
 
-DONE
+'
 
-printf '    Dotgraft 使用独立 source/config：\n'
+dg_text '    Dotgraft uses a separate source/config:\n' '    Dotgraft 使用独立 source/config：\n'
 printf '      source: %s\n' "$DOTGRAFT_SOURCE"
 printf '      config: %s\n' "$DOTGRAFT_CONFIG"
-printf '    你自己的 ~/.local/share/chezmoi 和 ~/.config/chezmoi 不会被改动。\n\n'
+dg_text '    Your own ~/.local/share/chezmoi and ~/.config/chezmoi will not be modified.\n\n' '    你自己的 ~/.local/share/chezmoi 和 ~/.config/chezmoi 不会被改动。\n\n'
 
 if [[ -d "$BACKUP_DIR" ]]; then
-  printf '    本次备份：%s\n\n' "$BACKUP_DIR"
+  dg_text '    Backup from this run: %s\n\n' '    本次备份：%s\n\n' "$BACKUP_DIR"
 fi

@@ -1,26 +1,32 @@
 {{- /*
-  chezmoi 的「每台机器问答」。只在 chezmoi init 时执行。
-  答案写进 ~/.config/chezmoi/chezmoi.toml，不写进本仓库，
-  所以你的个人选择不会被提交，也不会传到别人手上。
+  Per-machine questions, evaluated by chezmoi init.
+  Answers are stored in Dotgraft's separate chezmoi configuration, not Git.
+  Use dotgraft reconfigure to change selections.
 
-  想改选择：dotgraft reconfigure（或 chezmoi init 后再 chezmoi apply）
-
-  prompt 函数签名统一是 prompt <choices> [default]：
+  Prompt signatures: prompt <choices> [default]:
     promptBool        prompt [default]
     promptChoice      prompt choices [default]
     promptMultichoice prompt choices [default]
-  choices 必须是 (list ...)，default 必须只有一个值。
+  Choices must be a list; provide one default argument.
 */ -}}
 
-{{-   $tools := promptMultichoice
-      "要启用哪些 CLI 工具？（空格勾选，回车确认）"
+{{- /* DOTGRAFT_BILINGUAL_PROMPTS_V1: keep question text aligned with callers. */ -}}
+{{- $language := output "sh" "-c" (printf "%s\ndotgraft_detect_language\n" (include "scripts/lib/language.sh")) | trim -}}
+{{- $tools_question := "Which CLI tools should be enabled? (Space to select, Enter to confirm)" -}}
+{{- $theme_question := "Ghostty theme" -}}
+{{- $glass_question := "Enable native macOS glass? (Requires macOS 26 or later)" -}}
+{{- if eq $language "zh" -}}
+{{- $tools_question = "要启用哪些 CLI 工具？（空格勾选，回车确认）" -}}
+{{- $theme_question = "Ghostty 主题" -}}
+{{- $glass_question = "启用 macOS 原生毛玻璃效果？（需要 macOS 26 及以上）" -}}
+{{- end -}}
+{{- $tools := promptMultichoice
+      $tools_question
       (list "fzf" "zoxide" "eza" "bat" "yazi")
       (list "fzf" "zoxide" "eza" "bat" "yazi") -}}
 
-{{- /* 归一化选择结果。
-       一个都不选时，chezmoi 可能给出 [""] 而不是 []，
-       而 [""] 在模板里是真，会导致下游 `{{ if .tools }}` 误判。
-       这里把空串滤掉。 */ -}}
+{{- /* Remove empty entries: chezmoi can return [""] for an empty selection,
+       which would otherwise evaluate as true in downstream templates. */ -}}
 {{- $clean := list -}}
 {{- range $tools -}}
 {{-   if ne . "" -}}
@@ -28,22 +34,19 @@
 {{-   end -}}
 {{- end -}}
 
-{{- /* 主题名必须是 Ghostty 能解析的名称：内置主题，或 ~/.config/ghostty/themes/
-       下的自定义主题。Dotgraft Ink / Dotgraft Paper 由本仓库提供。
-       可用 ghostty +list-themes 查看内置主题；tests/smoke.sh 会校验这里每一项。 */ -}}
+{{- /* Names must resolve to built-in Ghostty themes or installed theme files.
+       The smoke test validates every theme in this list. */ -}}
 {{- $theme := promptChoice
-      "Ghostty 主题"
+      $theme_question
       (list "Dotgraft Ink" "Dotgraft Paper" "Dotgraft Porcelain" "Catppuccin Mocha" "Catppuccin Latte" "Catppuccin Frappe" "GitHub Dark" "GitHub Light Default" "TokyoNight")
       "Dotgraft Ink" -}}
 
-{{- /* 默认值跟系统版本走： macOS 26 起才支持 Ghostty 的原生毛玻璃。
-       在更旧的 macOS 上默认 false，避免用户一路回车得到一个
-       语义上不存在、甚至可能校验失败的配置。 */ -}}
+{{- /* Native glass requires macOS 26; use numeric blur on older systems. */ -}}
 {{- $macos_major := index (splitList "." (output "sw_vers" "-productVersion")) 0 | atoi -}}
 {{- $glass_default := ge $macos_major 26 -}}
 
 {{- $glass := promptBool
-      "启用 macOS 原生毛玻璃效果？（需要 macOS 26 及以上）"
+      $glass_question
       $glass_default -}}
 
 [data]

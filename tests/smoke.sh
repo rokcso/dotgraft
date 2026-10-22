@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# 冒烟测试
+# Smoke test
 # ==============================================================================
-# 验证模板渲染和选配行为。本地和 CI 都能跑：
+# Validate template rendering and choice behavior. Runs locally and in CI:
 #   bash tests/smoke.sh
 #
-# 不会碰你的真实家目录：所有操作都在临时目录里，仓库也是复制一份再用的。
-# 不执行 run_onchange 脚本（--exclude=scripts），所以不会真的装包。
+# Your real home directory is untouched: everything runs in temp dirs on a copied repo.
+# run_onchange scripts are not executed (--exclude=scripts), so nothing is installed.
 # ==============================================================================
 
 set -euo pipefail
+
+# Legacy output assertions explicitly exercise Chinese, independent of host locale.
+export DOTGRAFT_LANG=zh
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# 从 .chezmoi.toml.tmpl 里抄的问题原文，必须逐字一致，否则 init 会转为交互提问
+# Question text copied from .chezmoi.toml.tmpl; it must match exactly or init prompts interactively
 Q_TOOLS='要启用哪些 CLI 工具？（空格勾选，回车确认）'
 Q_THEME='Ghostty 主题'
 Q_GLASS='启用 macOS 原生毛玻璃效果？（需要 macOS 26 及以上）'
@@ -38,7 +41,7 @@ die() {
 }
 
 # ------------------------------------------------------------------------------
-# 前置检查
+# Preflight checks
 # ------------------------------------------------------------------------------
 command -v chezmoi > /dev/null 2>&1 || die "找不到 chezmoi。装一下：brew install chezmoi"
 
@@ -54,14 +57,14 @@ if [[ -z "$GHOSTTY_BIN" ]]; then
   printf '    ! 未找到 Ghostty，跳过配置校验和主题名校验\n'
 fi
 
-# 复制一份仓库当源目录。chezmoi init 在没有 .git 时会 git init，
-# 直接拿真仓库当源会污染它，所以复制。
+# Copy the repository as the source directory. Without .git, chezmoi init runs git init,
+# using the real repository as the source would pollute it, so copy it.
 SRC="$TMP/src"
 mkdir -p "$SRC"
 (cd "$REPO_DIR" && tar --exclude=.git --exclude=refs -cf - .) | (cd "$SRC" && tar -xf -)
 
 # ------------------------------------------------------------------------------
-# 断言工具
+# Assertion helpers
 # ------------------------------------------------------------------------------
 assert_file() {
   if [[ -f "$1" ]]; then ok "存在 $(basename "$1")"; else bad "缺少 $1"; fi
@@ -91,8 +94,8 @@ chezmoi_at() {
     "$@"
 }
 
-# 用独立 source/config 安装一份，专门测 dotgraft 命令本身。
-# 同时预置用户的默认 chezmoi 配置，验证 Dotgraft 不会碰它。
+# Install with a separate source/config specifically to test the dotgraft command.
+# Also seed the user default chezmoi config to verify Dotgraft leaves it alone.
 setup_cli_home() {
   local home="$1"
   local src="$home/.local/share/chezmoi-dotgraft"
@@ -132,9 +135,9 @@ dotgraft_script_at() {
 }
 
 # ------------------------------------------------------------------------------
-# 跑一个场景
-#   $1 场景名  $2 工具选择（/ 分隔，空表示全不选）
-#   $3 主题    $4 毛玻璃 true/false
+# Run one scenario
+#   $1 scenario name  $2 tool choices (/ separated; empty means none)
+#   $3 theme    $4 glass true/false
 # ------------------------------------------------------------------------------
 run_case() {
   local name="$1" tools="$2" theme="$3" glass="$4"
@@ -142,7 +145,7 @@ run_case() {
   localhome="$TMP/$name"
   mkdir -p "$localhome"
 
-  # 预置一个带第三方内容的 .zshrc，验证注入不会吃掉它
+  # Seed a .zshrc with third-party content to verify injection preserves it
   cat > "$localhome/.zshrc" << 'SEED'
 # THIRD_PARTY_MARKER
 export DA="someone-elses-stuff"
@@ -173,7 +176,7 @@ SEED
   assert_file "$localhome/.local/bin/dotgraft"
   assert_file "$conf_d/90-local.zsh"
 
-  # 基础片段永远在
+  # Base fragments are always present
   assert_file "$conf_d/10-history.zsh"
   assert_file "$conf_d/20-completion.zsh"
   assert_file "$conf_d/30-prompt.zsh"
@@ -181,7 +184,7 @@ SEED
   assert_file "$conf_d/80-dotgraft.zsh"
   assert_file "$conf_d/99-highlighting.zsh"
 
-  # 可选片段跟着选择走
+  # Optional fragments follow the selected tools
   case "$tools" in
     *fzf* | *zoxide*) assert_file "$conf_d/40-tools.zsh" ;;
     *) assert_no_file "$conf_d/40-tools.zsh" ;;
@@ -195,7 +198,7 @@ SEED
     *) assert_no_file "$conf_d/70-aliases.zsh" ;;
   esac
 
-  # 主题和毛玻璃
+  # Theme and glass
   assert_contains "$localhome/.config/ghostty/config" "theme = $theme"
   assert_contains "$localhome/.config/ghostty/config" "macos-titlebar-style = native"
   if [[ "$glass" == "true" ]]; then
@@ -219,7 +222,7 @@ SEED
   esac
   assert_contains "$localhome/.config/starship.toml" "palette = '$expected_palette'"
 
-  # .zshrc 注入：区块在，原有内容也在，且区块只出现一次
+  # .zshrc injection: the block exists once and original content survives
   assert_contains "$localhome/.zshrc" "# >>> dotgraft >>>"
   assert_contains "$localhome/.zshrc" "THIRD_PARTY_MARKER"
   assert_contains "$localhome/.zshrc" 'export DA="someone-elses-stuff"'
@@ -231,14 +234,14 @@ SEED
     bad "dotgraft 区块出现 $block_count 次"
   fi
 
-  # 脚本可执行
+  # Script is executable
   if [[ -x "$localhome/.local/bin/dotgraft" ]]; then
     ok "dotgraft 有可执行位"
   else
     bad "dotgraft 没有可执行位"
   fi
 
-  # 渲染后的可选 zsh 片段和 .zshrc 必须是合法 zsh
+  # Rendered optional zsh fragments and .zshrc must be valid zsh
   local zf
   for zf in "$conf_d/40-tools.zsh" "$conf_d/50-functions.zsh" "$conf_d/70-aliases.zsh" "$conf_d/80-dotgraft.zsh"; do
     [[ -e "$zf" ]] || continue
@@ -254,7 +257,7 @@ SEED
     bad ".zshrc 语法有误"
   fi
 
-  # 受管目标必须都在 dotgraft 白名单内，防止 .chezmoiignore 漏掉顶层文件
+  # Every managed target must be on the dotgraft allowlist so top-level files do not leak
   local managed rel unexpected=0
   while IFS= read -r managed; do
     [[ -n "$managed" ]] || continue
@@ -286,7 +289,7 @@ SEED
   done < <(chezmoi_at "$localhome" managed --include=files --path-style=absolute 2> /dev/null)
   [[ "$unexpected" -eq 0 ]] && ok "受管文件都在白名单内"
 
-  # 渲染后的依赖安装脚本必须是合法 sh
+  # The rendered dependency installer must be valid sh
   HOME="$localhome" chezmoi \
     --source "$SRC" --config "$localhome/chezmoi.toml" \
     --persistent-state "$localhome/state.boltdb" \
@@ -297,7 +300,7 @@ SEED
     bad "渲染后的安装脚本语法有误：$TMP/$name-install.sh"
   fi
 
-  # Ghostty 在的话顺便校验渲染结果（模板必须先渲染，不能直接喂）
+  # Validate the rendered result when Ghostty is available (templates cannot be fed directly)
   if [[ -n "$GHOSTTY_BIN" ]]; then
     if HOME="$localhome" "$GHOSTTY_BIN" +validate-config --config-file="$localhome/.config/ghostty/config" > /dev/null 2>&1; then
       ok "Ghostty 配置校验通过"
@@ -309,7 +312,7 @@ SEED
 }
 
 # ------------------------------------------------------------------------------
-# 三个场景
+# Three scenarios
 # ------------------------------------------------------------------------------
 run_case all "fzf/zoxide/eza/bat/yazi" "Catppuccin Mocha" true
 run_case none "" "GitHub Dark" false
@@ -319,11 +322,11 @@ run_case dotgraft-paper "eza" "Dotgraft Paper" false
 run_case dotgraft-porcelain "eza" "Dotgraft Porcelain" false
 
 # ------------------------------------------------------------------------------
-# 主题选项校验：.chezmoi.toml.tmpl 里列的每个主题名都必须在 Ghostty 里存在
+# Theme validation: every theme named in .chezmoi.toml.tmpl must exist in Ghostty
 # ------------------------------------------------------------------------------
 if [[ -n "$GHOSTTY_BIN" ]]; then
   step "校验选配里的主题名"
-  # shellcheck disable=SC2016 # 这里要的是字面量 $theme，不是变量展开
+  # shellcheck disable=SC2016 # A literal $theme is required here, not variable expansion
   theme_line="$(sed -n '/\$theme := promptChoice/,/(list/p' "$SRC/.chezmoi.toml.tmpl" | tail -1)"
   if [[ -z "$theme_line" ]]; then
     bad "没能从 .chezmoi.toml.tmpl 提取主题列表"
@@ -352,7 +355,7 @@ if [[ -n "$GHOSTTY_BIN" ]]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 重新选配：从全选改成全不选
+# Reconfigure: change from all tools to none
 # ------------------------------------------------------------------------------
 step "场景: 重新选配会移除可选片段"
 reconf="$TMP/reconf"
@@ -376,7 +379,7 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 短别名与补全
+# Short alias and completion
 # ------------------------------------------------------------------------------
 step "场景: dotg 别名与补全"
 shortcuts="$TMP/shortcuts"
@@ -428,7 +431,7 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# diff 默认摘要，完整 diff 需要 --full
+# diff summarizes by default; use --full for the complete diff
 # ------------------------------------------------------------------------------
 step "场景: diff 默认只显示摘要"
 printf '\n# pending change\n' >> "$shortcuts/.local/share/chezmoi-dotgraft/dot_config/zsh/conf.d/10-history.zsh"
@@ -479,7 +482,7 @@ assert_contains "$theme_home/.config/ghostty/config" "theme = Dotgraft Ink"
 assert_contains "$theme_home/.config/starship.toml" "palette = 'dotgraft_ink'"
 
 # ------------------------------------------------------------------------------
-# 卸载安全：非 Dotgraft 受管文件必须让卸载停下来
+# Uninstall safety: managed files outside Dotgraft must stop uninstall
 # ------------------------------------------------------------------------------
 step "场景: uninstall 拒绝非 Dotgraft 受管文件"
 cli="$TMP/cli-unexpected"
@@ -513,7 +516,7 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 卸载成功路径：备份、移除区块、恢复 Ghostty 覆盖文件
+# Successful uninstall: back up, remove the block, restore Ghostty override files
 # ------------------------------------------------------------------------------
 step "场景: uninstall 备份并清理 Dotgraft 文件"
 cli2="$TMP/cli-success"
@@ -587,7 +590,7 @@ assert_file "$backup_home/.local/bin/dotgraft"
 assert_contains "$backup_home/.zshrc" "# >>> dotgraft >>>"
 
 # ------------------------------------------------------------------------------
-# 卸载：.zshrc 是软链接时保留链接
+# Uninstall: keep the ~/.zshrc symlink when present
 # ------------------------------------------------------------------------------
 step "场景: uninstall 保留 .zshrc 软链接"
 cli_link="$TMP/cli-symlink"
@@ -617,7 +620,7 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 卸载安全：.zshrc 区块不完整时不能动任何东西
+# Uninstall safety: touch nothing when the ~/.zshrc block is incomplete
 # ------------------------------------------------------------------------------
 step "场景: .zshrc 区块不完整时拒绝卸载"
 cli3="$TMP/cli-malformed"
@@ -650,7 +653,7 @@ assert_contains "$cli3/.zshrc" "KEEP_ORDER=1"
 assert_file "$cli3/.config/zsh/init.zsh"
 
 # ------------------------------------------------------------------------------
-# bootstrap：已有非 Dotgraft source 时必须停下来
+# bootstrap: stop when a non-Dotgraft source already exists
 # ------------------------------------------------------------------------------
 fakebin="$TMP/fakebin"
 mkdir -p "$fakebin"
@@ -723,7 +726,7 @@ fi
 assert_file "$legacy_home/.local/share/chezmoi/old-file"
 
 # ------------------------------------------------------------------------------
-# deps：无条件重跑依赖安装，并把失败反映到退出码
+# deps: always rerun dependency installation and propagate failures in the exit code
 # ------------------------------------------------------------------------------
 step "场景: dotgraft deps 可重复执行且传播失败"
 cli4="$TMP/cli-deps"
@@ -766,7 +769,7 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 幂等：同一个 HOME 连跑两次 apply，内容不应变化
+# Idempotence: two applies to the same HOME must not change content
 # ------------------------------------------------------------------------------
 step "场景: 幂等（连续两次 apply）"
 idem="$TMP/idem"
@@ -794,7 +797,7 @@ else
   bad "第二次 apply 后仍有文件差异"
 fi
 
-# 仓库自身的文件不该被铺进 $HOME（.chezmoiignore 回归检查）
+# Repository files must not be deployed into $HOME (.chezmoiignore regression check)
 assert_no_file "$idem/README.md"
 assert_no_file "$idem/VERSION"
 assert_no_file "$idem/CHANGELOG.md"
@@ -805,7 +808,7 @@ assert_no_file "$idem/tests"
 assert_no_file "$idem/scripts"
 
 # ------------------------------------------------------------------------------
-# 结果
+# Results
 # ------------------------------------------------------------------------------
 printf '\n========================================\n'
 printf ' 通过: %d   失败: %d\n' "$pass_count" "$fail_count"

@@ -1,71 +1,149 @@
 #!/bin/sh
 # ==============================================================================
-# 依赖安装 —— chezmoi run_onchange 脚本
+# Dependency installation - chezmoi run_onchange script
 # ==============================================================================
-# 在 chezmoi apply 时执行，但只在内容变化时重跑。
-# 内容里嵌了两个哈希，所以：
-#   - 第一次安装会跑
-#   - 改了选配（dotgraft reconfigure）会重跑
-#   - 改了 Brewfile 会重跑
-#   - 都没变时静默跳过，不会每次 apply 都拖时间
+# Runs during chezmoi apply, but only again when the content changes.
+# The content embeds two hashes, so:
+#   - The first install runs it
+#   - Selected options changed (dotgraft reconfigure): rerun
+#   - Brewfile changed: rerun
+#   - Nothing changed: skip silently without slowing down every apply
 #
-# 注意：run_onchange 不是收敛机制。包被手动删掉、或上次安装失败时，
-# 只要脚本内容没变就不会重跑。所以 dotgraft 另有 `dotgraft deps`
-# 命令，会无条件重新执行本脚本。本脚本失败时会以非零退出，
-# 让 chezmoi 不把这个版本标记为“已完成”，下次 apply 仍会重试。
+# Note: run_onchange is not convergence. If a package is removed manually or
+# install failed, unchanged script content means no rerun. So dotgraft has
+# `dotgraft deps`, which always reruns this script. On failure this script
+# exits nonzero so chezmoi does not mark this version complete and retries on
+# the next apply.
 #
-# 脚本必须幂等：brew 对已安装的包会直接跳过。
+# The script must be idempotent: brew skips packages that are already installed.
 # ==============================================================================
 set -eu
 
-# 选配哈希: {{ .tools | toJson | sha256sum }}
-# 清单哈希: {{ include "Brewfile" | sha256sum }}
+# Choices hash: {{ .tools | toJson | sha256sum }}
+# Manifest hash: {{ include "Brewfile" | sha256sum }}
 
-if ! command -v brew >/dev/null 2>&1; then
-  echo "  ! 找不到 Homebrew，无法安装依赖" >&2
-  echo "    装好 Homebrew 后运行 dotgraft deps 重试" >&2
+# Embedded copy of scripts/lib/language.sh so this standalone script can choose
+# its UI language at runtime. Language is never decided at template render time:
+# changing the shell locale must not change this script's content or rerun it.
+# Compatible with POSIX sh and macOS Bash 3.2.
+
+# Return en/zh for supported locale names; return nothing for unknown names.
+dotgraft_locale_language() {
+  case "$1" in
+    zh | zh_* | zh-* | Chinese*) printf 'zh\n' ;;
+    en | en_* | en-* | English*) printf 'en\n' ;;
+  esac
+}
+
+# Explicit overrides win, followed by locale variables and macOS preferences.
+# Do not change LC_ALL/LANG: external tools retain their own locale behavior.
+dotgraft_detect_language() {
+  if [ -n "${DOTGRAFT_LANG:-}" ]; then
+    case "$DOTGRAFT_LANG" in
+      en | zh) printf '%s\n' "$DOTGRAFT_LANG" ;;
+      *) printf 'en\n' ;;
+    esac
+    return
+  fi
+
+  # The first populated locale is authoritative. An unsupported locale falls
+  # back to English rather than a lower-priority, potentially stale variable.
+  dotgraft_locale="${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}"
+  case "$dotgraft_locale" in
+    '' | C | POSIX | C.UTF-8 | C.utf8) ;;
+    *)
+      dotgraft_language="$(dotgraft_locale_language "$dotgraft_locale")"
+      printf '%s\n' "${dotgraft_language:-en}"
+      return
+      ;;
+  esac
+
+  # macOS shells may expose no meaningful locale. Read only the first preferred
+  # UI language; a secondary Chinese language must not override the primary one.
+  if command -v defaults > /dev/null 2>&1; then
+    dotgraft_preferred="$({ defaults read -g AppleLanguages 2> /dev/null || true; } | awk '
+      /\(/ { next }
+      { gsub(/[",[:space:]]/, ""); if (length && $0 != ")") { print; exit } }
+    ')"
+    dotgraft_language="$(dotgraft_locale_language "$dotgraft_preferred")"
+    printf '%s\n' "${dotgraft_language:-en}"
+  else
+    printf 'en\n'
+  fi
+}
+
+# Resolve the UI language once at runtime, not while chezmoi renders template.
+DOTGRAFT_UI_LANG="$(dotgraft_detect_language)"
+
+# Print the English or Chinese template for the current UI language.
+dg_text() {
+  dg_en="$1"
+  dg_zh="$2"
+  shift 2
+  if [ "$DOTGRAFT_UI_LANG" = "zh" ]; then
+    # shellcheck disable=SC2059
+    printf "$dg_zh" "$@"
+  else
+    # shellcheck disable=SC2059
+    printf "$dg_en" "$@"
+  fi
+}
+
+if ! command -v brew > /dev/null 2>&1; then
+  dg_text '  ! Homebrew not found; cannot install dependencies\n' \
+    '  ! 找不到 Homebrew，无法安装依赖\n' >&2
+  dg_text '    Install Homebrew, then run dotgraft deps to retry\n' \
+    '    装好 Homebrew 后运行 dotgraft deps 重试\n' >&2
   exit 1
 fi
 
 failed=0
 
-echo "==> 安装基础依赖"
-# 单个包失败（比如网络问题）不应中断后续安装，但最后必须把失败
-# 反映到退出码里，否则 chezmoi 会认为依赖已经装好。
+dg_text '==> Installing base dependencies\n' '==> 安装基础依赖\n'
+# A single package failure (such as a network issue) should not stop the rest,
+# but the failure must be reflected in the exit code; otherwise chezmoi assumes
+# dependencies are installed.
 brew bundle --file="{{ .chezmoi.sourceDir }}/Brewfile" || failed=1
 
 # ------------------------------------------------------------------------------
-# 字体：只在不存在时安装
+# Fonts: install only when missing
 # ------------------------------------------------------------------------------
-# 字体 cask 会尝试"采纳"已存在的同名文件，遇到二进制不同就报错退出：
+# The font cask tries to "adopt" an existing file and exits on different
+# binaries:
 #   "It seems the existing Font is different from the one being installed."
-# 从 GitHub 手动装过 Maple Mono 的人几乎一定会撞上。
-# 所以这里先探测，已经有了就完全跳过。
+# Anyone who installed Maple Mono manually from GitHub will almost certainly hit
+# it. So probe first and skip entirely when the font already exists.
 #
-# 只认 CN 版：如果只匹配 "maple"，用户装了非 CN 的 Maple Mono NF 时
-# 会被误判为“已安装”，而配置里写的是 Maple Mono NF CN，最终字体回退。
-if ls "$HOME/Library/Fonts" /Library/Fonts 2>/dev/null | grep -Eqi 'maple.*cn'; then
-  echo "==> 已存在 Maple Mono NF CN 字体，跳过"
+# Match CN only: matching just "maple" would treat non-CN Maple Mono NF as
+# installed while the config names Maple Mono NF CN, leading to font fallback.
+if ls "$HOME/Library/Fonts" /Library/Fonts 2> /dev/null | grep -Eqi 'maple.*cn'; then
+  dg_text '==> Maple Mono NF CN font already exists; skipping\n' \
+    '==> 已存在 Maple Mono NF CN 字体，跳过\n'
 else
-  echo "==> 安装字体 font-maple-mono-nf-cn"
+  dg_text '==> Installing font font-maple-mono-nf-cn\n' \
+    '==> 安装字体 font-maple-mono-nf-cn\n'
   brew install --cask font-maple-mono-nf-cn || failed=1
 fi
 
 # ------------------------------------------------------------------------------
-# 选配的 CLI 工具
+# Optional CLI tools
 # ------------------------------------------------------------------------------
 {{ if .tools -}}
-echo "==> 安装选配工具: {{ .tools | join " " }}"
+dg_text '==> Installing optional tools: %s\n' \
+  '==> 安装选配工具: %s\n' "{{ .tools | join " " }}"
 brew install {{ .tools | join " " }} || failed=1
 {{- else -}}
-echo "==> 没有选择任何 CLI 工具，跳过"
+dg_text '==> No optional CLI tools selected; skipping\n' \
+  '==> 没有选择任何 CLI 工具，跳过\n'
 {{- end }}
 
 if [ "$failed" -ne 0 ]; then
-  echo "" >&2
-  echo "  ! 有依赖没装上" >&2
-  echo "    修复网络或 Homebrew 后运行 dotgraft deps 重试" >&2
+  dg_text '\n' '\n' >&2
+  dg_text '  ! Some dependencies were not installed\n' \
+    '  ! 有依赖没装上\n' >&2
+  dg_text '    Fix the network or Homebrew, then run dotgraft deps to retry\n' \
+    '    修复网络或 Homebrew 后运行 dotgraft deps 重试\n' >&2
   exit 1
 fi
 
-echo "==> 依赖已就绪"
+dg_text '==> Dependencies are ready\n' '==> 依赖已就绪\n'
