@@ -44,7 +44,7 @@ mv "$HOME/Library/Application Support/com.mitchellh.ghostty/config" \
 theme = {{ .theme }}
 ```
 
-Dotgraft 自带两套自定义主题：
+Dotgraft 自带两套自定义主题，完整色板和对比度见 [Themes](themes.md)：
 
 - `Dotgraft Ink`：深色，默认主题
 - `Dotgraft Paper`：浅色

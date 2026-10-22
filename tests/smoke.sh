@@ -442,6 +442,33 @@ else
 fi
 
 # ------------------------------------------------------------------------------
+# dotgraft theme
+# ------------------------------------------------------------------------------
+step "场景: dotgraft theme 切换"
+theme_home="$TMP/cli-theme"
+setup_cli_home "$theme_home"
+theme_list="$(dotgraft_at "$theme_home" theme list 2>&1 || true)"
+if [[ "$theme_list" == *"Dotgraft Ink"* ]] && [[ "$theme_list" == *"Dotgraft Paper"* ]]; then
+  ok "theme list 显示两套品牌主题"
+else
+  bad "theme list 缺少品牌主题"
+fi
+if dotgraft_at "$theme_home" theme paper > /dev/null 2>&1; then
+  ok "theme paper 执行成功"
+else
+  bad "theme paper 执行失败"
+fi
+assert_contains "$theme_home/.config/ghostty/config" "theme = Dotgraft Paper"
+assert_contains "$theme_home/.config/starship.toml" "palette = 'dotgraft_paper'"
+if dotgraft_at "$theme_home" theme ink > /dev/null 2>&1; then
+  ok "theme ink 执行成功"
+else
+  bad "theme ink 执行失败"
+fi
+assert_contains "$theme_home/.config/ghostty/config" "theme = Dotgraft Ink"
+assert_contains "$theme_home/.config/starship.toml" "palette = 'dotgraft_ink'"
+
+# ------------------------------------------------------------------------------
 # 卸载安全：非 Dotgraft 受管文件必须让卸载停下来
 # ------------------------------------------------------------------------------
 step "场景: uninstall 拒绝非 Dotgraft 受管文件"

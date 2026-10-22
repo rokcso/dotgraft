@@ -114,6 +114,7 @@ dotgraft reconfigure
 | `dotgraft apply` | 预览、确认、应用 |
 | `dotgraft update` | 拉取上游、预览、应用，并运行 `dotgraft deps` |
 | `dotgraft deps` | 无条件安装/修复 Homebrew 依赖（不受 `run_onchange` 缓存影响） |
+| `dotgraft theme [ink\|paper\|list]` | 只切换 Ghostty + Starship 主题，不重新询问工具 |
 | `dotgraft reconfigure` | 重新选配，并修复依赖 |
 | `dotgraft edit <文件>` | 编辑受管文件的仓库副本 |
 | `dotgraft cd` | 进入 Dotgraft 的 chezmoi 源目录 |
@@ -143,6 +144,27 @@ dotg <Tab>
 ```
 
 如果 `dotg` 已经被别的命令占用，Dotgraft 不会覆盖它，继续使用完整的 `dotgraft`。
+
+## 主题
+
+内置两套品牌主题：
+
+- **Dotgraft Ink**：深色，默认
+- **Dotgraft Paper**：浅色
+
+```bash
+dotgraft theme          # 查看当前主题和可选主题
+dotgraft theme ink      # 切到深色
+dotgraft theme paper    # 切到浅色
+```
+
+`dotgraft theme` 只改主题，不重新询问 CLI 工具或毛玻璃。切换后：
+
+```bash
+exec zsh
+```
+
+Ghostty 里再按 `Cmd + Shift + ,` 重载。完整配色、对比度和 Starship 联动见 [Themes](docs/themes.md)。
 
 ## 会改动哪些文件
 
@@ -192,6 +214,7 @@ dotgraft uninstall
 |---|---|
 | [配置架构](docs/configuration.md) | 仓库结构、chezmoi 属性、片段加载顺序、怎么加新片段和新的选配项 |
 | [Ghostty](docs/ghostty.md) | 每一项配置的解释、macOS 覆盖文件陷阱、主题与快捷键、验证命令 |
+| [Themes](docs/themes.md) | Dotgraft Ink / Paper 的品牌主题、色板、对比度和切换方式 |
 | [Shell](docs/shell.md) | Starship、三个插件、五个 CLI 工具、别名与函数 |
 | [排错](docs/troubleshooting.md) | 装了没效果、补全不生效、字体缺图标、卸载不干净等 |
 

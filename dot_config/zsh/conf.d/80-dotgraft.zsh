@@ -17,6 +17,7 @@ _dotgraft() {
     'apply:预览并应用改动'
     'update:拉取上游、预览并应用'
     'deps:安装/修复 Homebrew 依赖'
+    'theme:切换 Ghostty + Starship 主题'
     'reconfigure:重新选择组件'
     'edit:编辑受管文件的仓库副本'
     'cd:进入 Dotgraft 的 chezmoi source'
@@ -38,6 +39,23 @@ _dotgraft() {
       case "$words[2]" in
         edit)
           _files
+          ;;
+        theme)
+          local -a themes
+          themes=(
+            'ink:Dotgraft Ink'
+            'paper:Dotgraft Paper'
+            'list:列出可用主题'
+            'Dotgraft Ink:深色品牌主题'
+            'Dotgraft Paper:浅色品牌主题'
+            'Catppuccin Mocha:Catppuccin Mocha'
+            'Catppuccin Latte:Catppuccin Latte'
+            'Catppuccin Frappe:Catppuccin Frappe'
+            'GitHub Dark:GitHub Dark'
+            'GitHub Light Default:GitHub Light Default'
+            'TokyoNight:TokyoNight'
+          )
+          _describe -t themes 'theme' themes
           ;;
         chezmoi)
           # 交给 chezmoi 自己的补全更合适；这里不强行接管

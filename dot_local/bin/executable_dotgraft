@@ -206,6 +206,78 @@ init_with_choices() {
     --promptBool "启用 macOS 原生毛玻璃效果？（需要 macOS 26 及以上）=$glass"
 }
 
+resolve_theme_name() {
+  case "$1" in
+    ink | Ink) printf 'Dotgraft Ink\n' ;;
+    paper | Paper) printf 'Dotgraft Paper\n' ;;
+    mocha) printf 'Catppuccin Mocha\n' ;;
+    latte) printf 'Catppuccin Latte\n' ;;
+    frappe) printf 'Catppuccin Frappe\n' ;;
+    github-dark) printf 'GitHub Dark\n' ;;
+    github-light) printf 'GitHub Light Default\n' ;;
+    tokyonight) printf 'TokyoNight\n' ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
+cmd_theme() {
+  require_dotgraft_source
+  local arg="${1:-}"
+
+  if [[ $# -eq 0 || "$arg" == "list" || "$arg" == "-h" || "$arg" == "--help" || "$arg" == "help" ]]; then
+    step "Ghostty 主题"
+    note "当前: $(current_theme)"
+    note "可用:"
+    local t
+    for t in "${DOTGRAFT_THEMES[@]}"; do
+      printf '    %s\n' "$t"
+    done
+    printf '\n'
+    note "切换: dotgraft theme ink | paper | <主题名>"
+    return 0
+  fi
+
+  [[ $# -eq 1 ]] || die "用法: dotgraft theme [ink|paper|list|<主题名>]"
+
+  local theme
+  theme="$(resolve_theme_name "$arg")"
+  theme_is_valid "$theme" || die "未知主题：$arg。运行 dotgraft theme 查看列表。"
+
+  case "$theme" in
+    "Dotgraft Ink" | "Dotgraft Paper")
+      [[ -f "$HOME/.config/ghostty/themes/$theme" ]] || die "主题文件不存在：${HOME}/.config/ghostty/themes/$theme。先运行 dotgraft apply。"
+      ;;
+  esac
+
+  [[ -f "$DOTGRAFT_CONFIG" ]] || die "找不到选配文件：$DOTGRAFT_CONFIG"
+  if [[ "$(current_theme)" == "$theme" ]]; then
+    note "当前已经是 $theme。"
+  fi
+
+  local tmp
+  tmp="$(mktemp)"
+  if ! awk -v theme="$theme" '
+    BEGIN { done = 0 }
+    /^[[:space:]]*theme[[:space:]]*=/ {
+      if (!done) { print "  theme = \"" theme "\""; done = 1 }
+      next
+    }
+    { print }
+    END { if (!done) exit 2 }
+  ' "$DOTGRAFT_CONFIG" > "$tmp"; then
+    rm -f "$tmp"
+    die "无法更新主题配置：$DOTGRAFT_CONFIG"
+  fi
+  mv "$tmp" "$DOTGRAFT_CONFIG"
+
+  chezmoi_dg apply --exclude=scripts \
+    "$HOME/.config/ghostty/config" \
+    "$HOME/.config/starship.toml"
+
+  note "主题已切换: $theme"
+  note "Ghostty: Cmd+Shift+, 重新加载；Starship: exec zsh"
+}
+
 # uninstall 只允许删除这个白名单内的目标路径。
 # 新增受管文件时记得同步这里，否则 tests/smoke.sh 会失败。
 is_allowed_target() {
@@ -831,6 +903,7 @@ dotgraft —— 终端配置管理
   apply         预览并应用改动
   update        拉取上游更新并应用（含依赖）
   deps          无条件安装/修复 Homebrew 依赖
+  theme [名称]  切换 Ghostty + Starship 主题（ink / paper / list）
   reconfigure   重新选择组件（工具 / 主题 / 毛玻璃）
   edit <文件>   编辑某个受管文件的仓库副本
   cd            进入 Dotgraft 的 chezmoi 源目录
@@ -856,6 +929,7 @@ main() {
     apply) cmd_apply ;;
     update) cmd_update ;;
     deps) cmd_deps ;;
+    theme) cmd_theme "$@" ;;
     reconfigure) cmd_reconfigure ;;
     edit) cmd_edit "$@" ;;
     cd) cmd_cd ;;
