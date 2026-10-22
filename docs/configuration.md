@@ -212,7 +212,8 @@ dotgraft diff --full             # 完整 diff
 dotgraft apply                   # 应用
 dotgraft deps                    # 安装/修复依赖
 dotgraft theme                   # 查看/切换主题
-dotgraft theme paper             # 切到浅色主题
+dotgraft theme paper             # 切到暖光浅色
+dotgraft theme porcelain         # 切到冷光浅色
 dotgraft update                  # 拉上游、预览、应用、修依赖
 dotgraft chezmoi edit --apply ~/.zshrc   # 在 Dotgraft source 上编辑并立即生效
 dotgraft cd                      # 进源目录，用 git 正常提交

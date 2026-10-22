@@ -13,8 +13,8 @@ load helpers
 }
 
 @test "choose_theme retries invalid input" {
-  result="$(printf '9\n3\n' | choose_theme "Catppuccin Mocha" 2> /dev/null)"
-  [ "$result" = "Catppuccin Mocha" ]
+  result="$(printf '99\n3\n' | choose_theme "Catppuccin Mocha" 2> /dev/null)"
+  [ "$result" = "Dotgraft Porcelain" ]
 }
 
 @test "choose_glass selects native" {

@@ -35,11 +35,12 @@ disabled = false
 |---|---|
 | `Dotgraft Ink` | `dotgraft_ink` |
 | `Dotgraft Paper` | `dotgraft_paper` |
+| `Dotgraft Porcelain` | `dotgraft_porcelain` |
 | `Catppuccin Latte` / `GitHub Light Default` | `catppuccin_latte` |
 | `Catppuccin Frappe` | `catppuccin_frappe` |
 | 其他深色主题 | `catppuccin_mocha` |
 
-也可以手动改 `palette`；可选的 Dotgraft 调色板是 `dotgraft_ink` / `dotgraft_paper`。
+也可以手动改 `palette`；可选的 Dotgraft 调色板是 `dotgraft_ink` / `dotgraft_paper` / `dotgraft_porcelain`。
 
 ### 同步上游预设
 
@@ -54,7 +55,7 @@ starship preset catppuccin-powerline -o /tmp/new.toml
 
 - `line_break.disabled = false`
 - 顶部的 palette 条件块
-- `palettes.dotgraft_ink` / `palettes.dotgraft_paper`
+- `palettes.dotgraft_ink` / `palettes.dotgraft_paper` / `palettes.dotgraft_porcelain`
 
 文件头记录了所依据的上游版本（当前 1.27.0）。写版本号的目的是下次同步时知道从哪跳过来。
 

@@ -45,9 +45,11 @@ _dotgraft() {
           themes=(
             'ink:Dotgraft Ink'
             'paper:Dotgraft Paper'
+            'porcelain:Dotgraft Porcelain'
             'list:列出可用主题'
             'Dotgraft Ink:深色品牌主题'
-            'Dotgraft Paper:浅色品牌主题'
+            'Dotgraft Paper:浅色暖光品牌主题'
+            'Dotgraft Porcelain:浅色冷光品牌主题'
             'Catppuccin Mocha:Catppuccin Mocha'
             'Catppuccin Latte:Catppuccin Latte'
             'Catppuccin Frappe:Catppuccin Frappe'

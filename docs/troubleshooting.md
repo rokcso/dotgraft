@@ -294,13 +294,14 @@ exec zsh
 
 `DOTGRAFT_REPO="$PWD"` 只 clone 已 commit 的 HEAD；未提交改动需要用文档里的 `DOTGRAFT_SOURCE="$PWD" ... dotgraft apply` 方式。
 
-## Ghostty 说找不到 Dotgraft Ink / Paper
+## Ghostty 说找不到 Dotgraft Ink / Paper / Porcelain
 
 主题文件应该在：
 
 ```text
 ~/.config/ghostty/themes/Dotgraft Ink
 ~/.config/ghostty/themes/Dotgraft Paper
+~/.config/ghostty/themes/Dotgraft Porcelain
 ```
 
 先确认配置已应用：

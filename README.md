@@ -82,13 +82,13 @@ dotgraft apply
 安装时会问三项，答案存在 `~/.config/dotgraft/chezmoi.toml`，**不进仓库**：
 
 - **CLI 工具**：chezmoi 的勾选列表，空格选择、回车确认
-- **Ghostty 主题**：编号菜单，默认 `Dotgraft Ink`；浅色选 `Dotgraft Paper`
+- **Ghostty 主题**：编号菜单，默认 `Dotgraft Ink`；浅色可选 `Dotgraft Paper` 或 `Dotgraft Porcelain`
 - **毛玻璃**：编号菜单，输入 `1`（原生）或 `2`（数字模糊）
 
 | 问题 | 作用 |
 |---|---|
 | 要启用哪些 CLI 工具（多选） | fzf / zoxide / eza / bat / yazi。没勾的不安装，对应配置片段也会被删除；已经装过的 Homebrew 包不会卸载 |
-| Ghostty 主题 | `Dotgraft Ink`（深色，默认）/ `Dotgraft Paper`（浅色）/ 内置主题 |
+| Ghostty 主题 | `Dotgraft Ink`（深色，默认）/ `Dotgraft Paper`（浅色暖光）/ `Dotgraft Porcelain`（浅色冷光）/ 内置主题 |
 | 是否用原生毛玻璃 | 默认值按 macOS 版本决定：macOS 26+ 默认开启（`macos-glass-regular`），更旧的系统默认数字模糊 |
 
 非交互环境可用 `DOTGRAFT_THEME` 和 `DOTGRAFT_GLASS` 跳过菜单：
@@ -114,7 +114,7 @@ dotgraft reconfigure
 | `dotgraft apply` | 预览、确认、应用 |
 | `dotgraft update` | 拉取上游、预览、应用，并运行 `dotgraft deps` |
 | `dotgraft deps` | 无条件安装/修复 Homebrew 依赖（不受 `run_onchange` 缓存影响） |
-| `dotgraft theme [ink\|paper\|list]` | 只切换 Ghostty + Starship 主题，不重新询问工具 |
+| `dotgraft theme [ink\|paper\|porcelain\|list]` | 只切换 Ghostty + Starship 主题，不重新询问工具 |
 | `dotgraft reconfigure` | 重新选配，并修复依赖 |
 | `dotgraft edit <文件>` | 编辑受管文件的仓库副本 |
 | `dotgraft cd` | 进入 Dotgraft 的 chezmoi 源目录 |
@@ -126,7 +126,7 @@ dotgraft reconfigure
 
 `dotgraft diff` 默认只列文件摘要，避免首次安装时把整份新文件打印出来；要看逐行补丁用 `dotgraft diff --full`。
 
-Starship 会根据 Ghostty 主题自动选择调色板：Dotgraft Ink 用 `dotgraft_ink`，Dotgraft Paper 用 `dotgraft_paper`，内置浅色主题使用 `catppuccin_latte`。
+Starship 会根据 Ghostty 主题自动选择调色板：Dotgraft Ink 用 `dotgraft_ink`，Dotgraft Paper 用 `dotgraft_paper`，Dotgraft Porcelain 用 `dotgraft_porcelain`，内置浅色主题使用 `catppuccin_latte`。
 
 如果系统里没有现成的 `dotg` 命令，安装后会自动得到一个短别名：
 
@@ -147,15 +147,17 @@ dotg <Tab>
 
 ## 主题
 
-内置两套品牌主题：
+内置三套品牌主题：
 
 - **Dotgraft Ink**：深色，默认
-- **Dotgraft Paper**：浅色
+- **Dotgraft Paper**：浅色，暖光纸面
+- **Dotgraft Porcelain**：浅色，冷光瓷面
 
 ```bash
-dotgraft theme          # 查看当前主题和可选主题
-dotgraft theme ink      # 切到深色
-dotgraft theme paper    # 切到浅色
+dotgraft theme            # 查看当前主题和可选主题
+dotgraft theme ink        # 切到深色
+dotgraft theme paper      # 切到暖光浅色
+dotgraft theme porcelain  # 切到冷光浅色
 ```
 
 `dotgraft theme` 只改主题，不重新询问 CLI 工具或毛玻璃。切换后：
@@ -176,7 +178,7 @@ Ghostty 里再按 `Cmd + Shift + ,` 重载。完整配色、对比度和 Starshi
 | `~/.config/zsh/` | zsh 配置 | 完全接管 |
 | `~/.config/zsh/conf.d/90-local.zsh` | 你的机器专属配置 | 只创建一次 |
 | `~/.config/ghostty/config` | Ghostty 配置 | 完全接管，走模板 |
-| `~/.config/ghostty/themes/` | Dotgraft Ink / Paper 主题 | 完全接管 |
+| `~/.config/ghostty/themes/` | Dotgraft Ink / Paper / Porcelain 主题 | 完全接管 |
 | `~/.config/starship.toml` | Starship 配置 | 完全接管 |
 | `~/.local/bin/dotgraft` | 命令本体 | 完全接管 |
 | `~/.config/dotgraft/chezmoi.toml` | Dotgraft 独立的选配答案 | 本机生成，不进仓库 |
@@ -214,7 +216,7 @@ dotgraft uninstall
 |---|---|
 | [配置架构](docs/configuration.md) | 仓库结构、chezmoi 属性、片段加载顺序、怎么加新片段和新的选配项 |
 | [Ghostty](docs/ghostty.md) | 每一项配置的解释、macOS 覆盖文件陷阱、主题与快捷键、验证命令 |
-| [Themes](docs/themes.md) | Dotgraft Ink / Paper 的品牌主题、色板、对比度和切换方式 |
+| [Themes](docs/themes.md) | Dotgraft Ink / Paper / Porcelain 的品牌主题、色板、对比度和切换方式 |
 | [Shell](docs/shell.md) | Starship、三个插件、五个 CLI 工具、别名与函数 |
 | [排错](docs/troubleshooting.md) | 装了没效果、补全不生效、字体缺图标、卸载不干净等 |
 

@@ -21,6 +21,8 @@ load helpers
   [ "$status" -eq 0 ]
   run is_allowed_target "$HOME/.config/ghostty/themes/Dotgraft Paper"
   [ "$status" -eq 0 ]
+  run is_allowed_target "$HOME/.config/ghostty/themes/Dotgraft Porcelain"
+  [ "$status" -eq 0 ]
 }
 
 @test "allowlist rejects other files" {

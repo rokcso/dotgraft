@@ -27,6 +27,7 @@ LEGACY_SOURCE="${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi"
 DOTGRAFT_THEMES=(
   "Dotgraft Ink"
   "Dotgraft Paper"
+  "Dotgraft Porcelain"
   "Catppuccin Mocha"
   "Catppuccin Latte"
   "Catppuccin Frappe"

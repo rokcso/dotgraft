@@ -33,7 +33,7 @@
        可用 ghostty +list-themes 查看内置主题；tests/smoke.sh 会校验这里每一项。 */ -}}
 {{- $theme := promptChoice
       "Ghostty 主题"
-      (list "Dotgraft Ink" "Dotgraft Paper" "Catppuccin Mocha" "Catppuccin Latte" "Catppuccin Frappe" "GitHub Dark" "GitHub Light Default" "TokyoNight")
+      (list "Dotgraft Ink" "Dotgraft Paper" "Dotgraft Porcelain" "Catppuccin Mocha" "Catppuccin Latte" "Catppuccin Frappe" "GitHub Dark" "GitHub Light Default" "TokyoNight")
       "Dotgraft Ink" -}}
 
 {{- /* 默认值跟系统版本走： macOS 26 起才支持 Ghostty 的原生毛玻璃。

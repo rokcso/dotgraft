@@ -204,7 +204,7 @@ SEED
     assert_contains "$localhome/.config/ghostty/config" "background-blur = 20"
   fi
   case "$theme" in
-    "Dotgraft Ink" | "Dotgraft Paper")
+    "Dotgraft Ink" | "Dotgraft Paper" | "Dotgraft Porcelain")
       assert_file "$localhome/.config/ghostty/themes/$theme"
       ;;
   esac
@@ -212,6 +212,7 @@ SEED
   case "$theme" in
     "Dotgraft Ink") expected_palette=dotgraft_ink ;;
     "Dotgraft Paper") expected_palette=dotgraft_paper ;;
+    "Dotgraft Porcelain") expected_palette=dotgraft_porcelain ;;
     "Catppuccin Latte" | "GitHub Light Default") expected_palette=catppuccin_latte ;;
     "Catppuccin Frappe") expected_palette=catppuccin_frappe ;;
     *) expected_palette=catppuccin_mocha ;;
@@ -273,6 +274,7 @@ SEED
         .config/ghostty/config | \
         '.config/ghostty/themes/Dotgraft Ink' | \
         '.config/ghostty/themes/Dotgraft Paper' | \
+        '.config/ghostty/themes/Dotgraft Porcelain' | \
         .config/starship.toml | \
         .local/bin/dotgraft | \
         .zshrc) ;;
@@ -314,6 +316,7 @@ run_case none "" "GitHub Dark" false
 run_case partial "eza" "TokyoNight" true
 run_case dotgraft-ink "fzf/zoxide/eza/bat/yazi" "Dotgraft Ink" true
 run_case dotgraft-paper "eza" "Dotgraft Paper" false
+run_case dotgraft-porcelain "eza" "Dotgraft Porcelain" false
 
 # ------------------------------------------------------------------------------
 # 主题选项校验：.chezmoi.toml.tmpl 里列的每个主题名都必须在 Ghostty 里存在
@@ -328,7 +331,7 @@ if [[ -n "$GHOSTTY_BIN" ]]; then
     while IFS= read -r theme_name; do
       [[ -z "$theme_name" ]] && continue
       case "$theme_name" in
-        "Dotgraft Ink" | "Dotgraft Paper")
+        "Dotgraft Ink" | "Dotgraft Paper" | "Dotgraft Porcelain")
           if "$GHOSTTY_BIN" +validate-config --config-file="$SRC/dot_config/ghostty/themes/$theme_name" > /dev/null 2>&1; then
             ok "自定义主题 $theme_name 校验通过"
           else
@@ -448,8 +451,8 @@ step "场景: dotgraft theme 切换"
 theme_home="$TMP/cli-theme"
 setup_cli_home "$theme_home"
 theme_list="$(dotgraft_at "$theme_home" theme list 2>&1 || true)"
-if [[ "$theme_list" == *"Dotgraft Ink"* ]] && [[ "$theme_list" == *"Dotgraft Paper"* ]]; then
-  ok "theme list 显示两套品牌主题"
+if [[ "$theme_list" == *"Dotgraft Ink"* ]] && [[ "$theme_list" == *"Dotgraft Paper"* ]] && [[ "$theme_list" == *"Dotgraft Porcelain"* ]]; then
+  ok "theme list 显示三套品牌主题"
 else
   bad "theme list 缺少品牌主题"
 fi
@@ -460,6 +463,13 @@ else
 fi
 assert_contains "$theme_home/.config/ghostty/config" "theme = Dotgraft Paper"
 assert_contains "$theme_home/.config/starship.toml" "palette = 'dotgraft_paper'"
+if dotgraft_at "$theme_home" theme porcelain > /dev/null 2>&1; then
+  ok "theme porcelain 执行成功"
+else
+  bad "theme porcelain 执行失败"
+fi
+assert_contains "$theme_home/.config/ghostty/config" "theme = Dotgraft Porcelain"
+assert_contains "$theme_home/.config/starship.toml" "palette = 'dotgraft_porcelain'"
 if dotgraft_at "$theme_home" theme ink > /dev/null 2>&1; then
   ok "theme ink 执行成功"
 else

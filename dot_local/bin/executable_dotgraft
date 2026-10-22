@@ -17,6 +17,7 @@ DOTGRAFT_CONFIG="${DOTGRAFT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/c
 DOTGRAFT_THEMES=(
   "Dotgraft Ink"
   "Dotgraft Paper"
+  "Dotgraft Porcelain"
   "Catppuccin Mocha"
   "Catppuccin Latte"
   "Catppuccin Frappe"
@@ -210,6 +211,7 @@ resolve_theme_name() {
   case "$1" in
     ink | Ink) printf 'Dotgraft Ink\n' ;;
     paper | Paper) printf 'Dotgraft Paper\n' ;;
+    porcelain | Porcelain) printf 'Dotgraft Porcelain\n' ;;
     mocha) printf 'Catppuccin Mocha\n' ;;
     latte) printf 'Catppuccin Latte\n' ;;
     frappe) printf 'Catppuccin Frappe\n' ;;
@@ -244,7 +246,7 @@ cmd_theme() {
   theme_is_valid "$theme" || die "未知主题：$arg。运行 dotgraft theme 查看列表。"
 
   case "$theme" in
-    "Dotgraft Ink" | "Dotgraft Paper")
+    "Dotgraft Ink" | "Dotgraft Paper" | "Dotgraft Porcelain")
       [[ -f "$HOME/.config/ghostty/themes/$theme" ]] || die "主题文件不存在：${HOME}/.config/ghostty/themes/$theme。先运行 dotgraft apply。"
       ;;
   esac
@@ -297,6 +299,7 @@ is_allowed_target() {
       .config/ghostty/config | \
       '.config/ghostty/themes/Dotgraft Ink' | \
       '.config/ghostty/themes/Dotgraft Paper' | \
+      '.config/ghostty/themes/Dotgraft Porcelain' | \
       .config/starship.toml | \
       .local/bin/dotgraft | \
       .zshrc)
@@ -903,7 +906,7 @@ dotgraft —— 终端配置管理
   apply         预览并应用改动
   update        拉取上游更新并应用（含依赖）
   deps          无条件安装/修复 Homebrew 依赖
-  theme [名称]  切换 Ghostty + Starship 主题（ink / paper / list）
+  theme [名称]  切换 Ghostty + Starship 主题（ink / paper / porcelain / list）
   reconfigure   重新选择组件（工具 / 主题 / 毛玻璃）
   edit <文件>   编辑某个受管文件的仓库副本
   cd            进入 Dotgraft 的 chezmoi 源目录
