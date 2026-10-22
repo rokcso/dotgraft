@@ -9,7 +9,7 @@ dotgraft apply         # 同步 Dotgraft 的独立 source 到家目录
 # 然后在 Ghostty 里按 Cmd + Shift + ,
 ```
 
-## 先看这个：macOS 上有个会覆盖你的文件
+## 先检查：macOS 覆盖文件
 
 Ghostty 的配置加载顺序（1.3 的 `Config.zig:loadDefaultFiles`）：
 

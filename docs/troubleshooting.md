@@ -1,6 +1,14 @@
 # 排错
 
-按症状找。
+按症状找。先确认当前状态：
+
+```bash
+dotgraft status
+dotgraft doctor
+dotgraft diff
+```
+
+`doctor` 检查 Dotgraft 自己的环境；需要看 chezmoi 的完整诊断时用 `dotgraft chezmoi doctor`。
 
 ## 装完了，但 Ghostty 的主题/字体没变
 
@@ -27,7 +35,7 @@ mv "$HOME/Library/Application Support/com.mitchellh.ghostty/config" \
 
 然后 `Cmd + Shift + ,` 重载。
 
-细节见 [Ghostty 文档](ghostty.md#先看这个macos-上有个会覆盖你的文件)。
+细节见 [Ghostty 文档](ghostty.md#先检查macos-覆盖文件)。
 
 ## 改了配置但没生效
 
@@ -131,7 +139,7 @@ Dotgraft 的安装脚本已经处理：检测到 `~/Library/Fonts` 或 `/Library
 
 ## `chezmoi purge` 之后文件还在
 
-这是设计如此，不是 bug。`chezmoi purge` 的说明是「删除 chezmoi 的配置、状态和源目录，**但保留目标状态**」。
+这是 `chezmoi purge` 的预期行为。它的说明是「删除 chezmoi 的配置、状态和源目录，**但保留目标状态**」。
 
 正确卸载用 `dotgraft uninstall`，它会自己清理目标文件。手动的话：
 
@@ -285,7 +293,7 @@ print ${_comps[dotgraft]}
 dotgraft status
 ```
 
-看 `版本:` 一行。旧安装可能停在只有 `dg`、还没有 `dotg` 的提交；先 `dotgraft update`，或重新安装最新版本。开发时用：
+看 `版本:` 一行。旧安装可能还没有 `dotg` 别名；先 `dotgraft update`，或重新安装最新版本。开发时用：
 
 ```bash
 DOTGRAFT_REPO="$PWD" bash bootstrap.sh

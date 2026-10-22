@@ -1,6 +1,6 @@
 # 配置架构
 
-这篇讲 Dotgraft 是怎么组织起来的：文件放哪、加载顺序怎么定、选配是怎么生效的，以及你要加东西时该动哪里。
+这篇讲 Dotgraft 是怎么组织起来的：文件放哪、加载顺序怎么定、选配是怎么生效的，以及你要加东西时该动哪里。日常操作见 [使用与维护](usage.md)。
 
 ## 仓库结构
 
@@ -36,6 +36,7 @@
 │           └── 99-highlighting.zsh        # 必须最后
 ├── dot_local/bin/executable_dotgraft      # → ~/.local/bin/dotgraft
 ├── .github/workflows/ci.yml                # 每次 push 自动跑检查和渲染测试
+├── .github/workflows/release.yml           # tag 发布：macOS 门禁、打包、release notes
 ├── tests/smoke.sh                          # 端到端冒烟测试，本地和 CI 共用
 ├── tests/unit/                             # bats 单元测试
 ├── scripts/release-notes.py                # 从 CHANGELOG 提取 release notes
@@ -206,26 +207,6 @@ dotgraft diff       # 确认落点对不对
 - `dotgraft update` / `dotgraft reconfigure` 结束时会运行 `dotgraft deps`
 - `dotgraft deps` 无条件重新渲染并执行同一份安装脚本，是修复依赖的入口
 
-## 常用命令
-
-```bash
-dotgraft status                  # 选配、差异、版本
-dotgraft diff                    # 文件摘要
-dotgraft diff --full             # 完整 diff
-dotgraft apply                   # 应用
-dotgraft deps                    # 安装/修复依赖
-dotgraft theme                   # 查看/切换主题
-dotgraft theme paper             # 切到暖光浅色
-dotgraft theme porcelain         # 切到冷光浅色
-dotgraft version                 # 版本和 source commit
-dotgraft backup list             # 查看备份
-dotgraft restore <时间戳>        # 恢复备份
-dotgraft update                  # 拉上游、预览、应用、修依赖
-dotgraft chezmoi edit --apply ~/.zshrc   # 在 Dotgraft source 上编辑并立即生效
-dotgraft cd                      # 进源目录，用 git 正常提交
-dotgraft doctor                  # Dotgraft 专用环境自检
-```
-
 ## 验证清单
 
 改完之后先跑单元测试和冒烟测试（需要 `brew install bats-core`）：
@@ -276,12 +257,22 @@ ghostty +validate-config --config-file=<(dotgraft chezmoi execute-template < dot
 
 ### CI
 
-`.github/workflows/ci.yml` 每次 push 和 PR 会跑两条流水线：
+`.github/workflows/ci.yml` 在每次 push 和 PR 时运行：
 
 | job | 环境 | 内容 |
 |---|---|---|
 | `lint` | ubuntu | `shellcheck`、`shfmt -d`、`python3 tests/theme-contract.py`、`zsh -n` |
 | `render` | macOS 14 / latest | 装 chezmoi、Ghostty 和 bats，跑 `bats tests/unit` + `tests/smoke.sh` |
-| `release` | macOS 14 / latest + ubuntu（tag push） | 先在 macOS 跑单元测试和 smoke；通过后才校验 `VERSION`、主题契约、打包 tarball + `SHA256SUMS`、生成 release notes 并创建 GitHub Release |
 
-`render` 那条才是关键：它跑的就是用户安装时会走的同一条路径。模板写错、选配项写错、`.chezmoiignore` 漏了目录，都会在那里暴露。Ghostty 安装不再 `continue-on-error`，否则主题和配置校验会被静默跳过。CI 里的 `shfmt` 版本是固定的，避免 `@latest` 改变格式规则导致流水线漂移。
+`render` 是关键：它走的是用户安装时的同一条路径。模板写错、选配项写错、`.chezmoiignore` 漏了目录，都会在这里暴露。Ghostty 安装不能 `continue-on-error`，否则主题和配置校验会被静默跳过。CI 里的 `shfmt` 版本固定，避免 `@latest` 改变格式规则后流水线漂移。
+
+### Release
+
+`.github/workflows/release.yml` 在 tag push 时运行：
+
+| job | 环境 | 内容 |
+|---|---|---|
+| `validate` | macOS 14 / latest | 跑 `bats tests/unit` 和 `tests/smoke.sh` |
+| `release` | ubuntu | 校验 `VERSION`、主题契约，打包 tarball + `SHA256SUMS`，从 `CHANGELOG.md` 生成 release notes，创建 GitHub Release |
+
+`release` 依赖 `validate`。macOS 测试不通过时不会创建 release。

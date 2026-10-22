@@ -61,7 +61,7 @@ starship preset catppuccin-powerline -o /tmp/new.toml
 
 ## 三个插件
 
-都不是框架，是三个独立的小插件。oh-my-zsh 的问题在于框架本身每次启动都要加载一堆东西，而我们只需要这几个功能。
+三个独立插件，不引入框架。只加载需要的功能，减少启动开销。
 
 ### zsh-autosuggestions
 
@@ -196,7 +196,7 @@ dotgraft <Tab>
 dotg <Tab>
 ```
 
-子命令包括 `status` / `diff` / `apply` / `update` / `deps` / `reconfigure` / `edit` / `cd` / `chezmoi` / `doctor` / `uninstall` / `help`。`edit` 会继续用 zsh 的文件补全补目标路径。
+子命令包括 `status` / `diff` / `apply` / `update` / `deps` / `theme` / `backup` / `restore` / `reconfigure` / `edit` / `cd` / `chezmoi` / `doctor` / `version` / `uninstall` / `help`。`edit` 会继续用 zsh 的文件补全补目标路径。
 
 如果补全没有生效，先确认 `20-completion.zsh` 已经执行过 `compinit`：
 

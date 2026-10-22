@@ -1,6 +1,6 @@
 # Dotgraft Theme
 
-Dotgraft 自带三套品牌主题，都是 Ghostty 主题文件，同时配套 Starship 调色板：
+Dotgraft 自带三套内置主题，都是 Ghostty 主题文件，同时配套 Starship 调色板：
 
 | 名称 | 模式 | Ghostty 文件 | Starship palette |
 |---|---|---|---|
@@ -16,35 +16,31 @@ Dotgraft 自带三套品牌主题，都是 Ghostty 主题文件，同时配套 S
 ~/.config/ghostty/themes/Dotgraft Porcelain
 ```
 
-## 设计意图
+## 颜色角色
 
-Dotgraft 的视觉语言不是“黑底霓虹”，也不是把浅色主题简单反色。三套主题共享同一组角色和语义：
+三套主题共用一组颜色角色，方便在深色和浅色之间保持一致的语义：
 
-- **地面（Ground）**：长时间阅读代码的底色
-- **墨色（Ink）**：正文
-- **Graft Green**：品牌主信号，也是绿色 ANSI 语义
-- **Dot**：光标与焦点，随环境温度变化（琥珀 / 铜 / 蓝）
-- **Alert / Signal**：错误与信息语义
+- **Ground**：代码阅读区的底色
+- **Ink**：正文
+- **Graft Green**：品牌绿，同时用于绿色 ANSI 和选区
+- **Dot**：光标与焦点（琥珀 / 铜 / 蓝）
+- **Alert / Signal**：错误与信息
 
-Ink 是夜间工作台：深绿墨底、暖白前景、琥珀光标。  
-Paper 是日间阅读面：暖纸底、墨绿前景、铜色光标。
-Porcelain 是冷光工具面：冷白底、蓝黑前景、蓝色光标。
+Ink 是深色主题：深绿墨底、暖白前景、琥珀光标。Paper 是暖光浅色：暖纸底、墨绿前景、铜色光标。Porcelain 是冷光浅色：冷白底、蓝黑前景、蓝色光标。
 
-三套主题都只设置颜色相关配置。不要在主题文件里设置 `theme`、`config-file`、`keybind` 或 `background-image`。
+三套主题只设置颜色相关配置。不要在主题文件里设置 `theme`、`config-file`、`keybind` 或 `background-image`。
 
 ## 角色规则
 
-这三套主题不是三份独立配色，而是同一套角色系统在三种光照下的实例：
-
 ```text
-Ground / Ink / Dot  → 表达环境与焦点温度
-Graft Green         → 品牌常量，同时用于 selection tint
-Alert / Signal      → 语义常量
-ANSI 色相           → 跨主题稳定，只做明度/彩度适配
-Selection           → Graft tint，不引入第三种强调色
+Ground / Ink / Dot  → 底色、正文、光标
+Graft Green         → 品牌绿，也用于绿色 ANSI 和选区
+Alert / Signal      → 错误和信息
+ANSI 色相           → 跨主题保持稳定，只调整明度和彩度
+Selection           → Graft tint，不引入额外的强调色
 ```
 
-因此 Paper 和 Porcelain 的绿色是同一个 Graft 绿，红色/蓝色也是各自的语义色；它们只改变地面、正文、光标和中性色。
+Paper 和 Porcelain 使用同一个品牌绿；红色、蓝色等保持各自的语义。两套浅色主题主要改变底色、正文、光标和中性色。
 
 ## 基础色与对比度
 
@@ -123,7 +119,7 @@ Paper 和 Porcelain 共用同一组 chromatic ANSI 色；中性色随地面温�
 | Catppuccin Frappe | `catppuccin_frappe` |
 | 其他深色主题 | `catppuccin_mocha` |
 
-Starship 是 Dotgraft 里唯一允许“多色说话”的表面。终端地面保持安静，提示符承担品牌和状态信号。
+Starship 的提示符使用多色显示状态；终端背景保持低对比，避免和代码抢注意力。
 
 ## 切换主题
 
@@ -203,6 +199,6 @@ python3 tests/theme-contract.py
 
 - 不做图片背景主题
 - 不在主题里放 keybind 或 shell 配置
-- 不追求把浅色做成深色的简单反色
-- 暂不做随 macOS 深浅色自动切换：Ghostty 可以 `dark:/light:`，但 Starship palette 目前是单值；自动切换需要额外设计
-- 不把 Dotgraft 扩张成通用主题市场；Ink / Paper / Porcelain 是品牌主题，内置主题是备选
+- 不把浅色主题做成深色主题的反色版本
+- 暂不随 macOS 深浅色自动切换：Ghostty 支持 `dark:/light:`，但 Starship palette 目前是单值
+- 不做通用主题市场；Ink / Paper / Porcelain 是内置主题，其他 Ghostty 主题作为备选
