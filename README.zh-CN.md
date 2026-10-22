@@ -63,7 +63,7 @@ DOTGRAFT_GLASS=true \
 | `dotgraft doctor` | Dotgraft 环境自检 |
 | `dotgraft uninstall` | 备份后卸载 |
 
-完整命令、备份恢复和卸载边界见 [使用与维护](docs/usage.md)。安装后还会得到 `dotg` 短别名。
+完整命令、备份恢复和卸载边界见 [使用与维护](docs/zh-CN/usage.md)。安装后还会得到 `dotg` 短别名。
 
 ## 主题
 
@@ -78,7 +78,7 @@ dotgraft theme            # 当前主题和可选主题
 dotgraft theme paper      # 切换
 ```
 
-Starship 会自动使用对应调色板。配色、对比度和切换细节见 [Themes](docs/themes.md)。
+Starship 会自动使用对应调色板。配色、对比度和切换细节见 [Themes](docs/zh-CN/themes.md)。
 
 ## 文件与安全
 
@@ -87,18 +87,24 @@ Starship 会自动使用对应调色板。配色、对比度和切换细节见 [
 - 安装和卸载前会备份到 `~/.config-backup/<时间戳>/`。
 - 默认的 `~/.local/share/chezmoi` 和 `~/.config/chezmoi/` 不会被写入。
 
-完整的文件落点和卸载安全边界见 [使用与维护](docs/usage.md)。
+完整的文件落点和卸载安全边界见 [使用与维护](docs/zh-CN/usage.md)。
+
+## 语言
+
+`dotgraft` 命令的输出使用英文或简体中文。设置 `DOTGRAFT_LANG=en` 或 `DOTGRAFT_LANG=zh` 可覆盖检测结果。否则依次检查 `LC_ALL`、`LC_MESSAGES`、`LANG`；如果这些变量缺失，或值为 `C`、`POSIX`、`C.UTF-8`、`C.utf8`，则使用 macOS `AppleLanguages` 中的第一个首选界面语言。未知 locale 和不支持的值会回退到英文。Dotgraft 不会修改 locale 变量，外部工具仍保持各自的 locale 行为。
+
+以下指南同时提供 [English](docs/usage.md) 和简体中文版本，每篇指南顶部都有语言切换链接。
 
 ## 文档
 
 | 文档 | 内容 |
 |---|---|
-| [使用与维护](docs/usage.md) | 日常命令、选配、备份恢复、卸载、本地开发 |
-| [配置架构](docs/configuration.md) | 仓库结构、chezmoi 属性、片段顺序、扩展方式 |
-| [Ghostty](docs/ghostty.md) | 配置项、macOS 覆盖文件、快捷键、验证 |
-| [Themes](docs/themes.md) | 三套主题、角色、对比度、Starship 联动 |
-| [Shell](docs/shell.md) | Starship、插件、CLI 工具、别名与补全 |
-| [排错](docs/troubleshooting.md) | 常见问题和诊断命令 |
+| [使用与维护](docs/zh-CN/usage.md) | 日常命令、选配、备份恢复、卸载、本地开发 |
+| [配置架构](docs/zh-CN/configuration.md) | 仓库结构、chezmoi 属性、片段顺序、扩展方式 |
+| [Ghostty](docs/zh-CN/ghostty.md) | 配置项、macOS 覆盖文件、快捷键、验证 |
+| [Themes](docs/zh-CN/themes.md) | 三套主题、角色、对比度、Starship 联动 |
+| [Shell](docs/zh-CN/shell.md) | Starship、插件、CLI 工具、别名与补全 |
+| [排错](docs/zh-CN/troubleshooting.md) | 常见问题和诊断命令 |
 | [Changelog](CHANGELOG.md) | 版本变更 |
 
 ## 环境要求

@@ -1,130 +1,132 @@
-# Shell 层
+# Shell layer
 
-zsh 部分由 `~/.zshrc` 里的一小段区块引导：
+English · [简体中文](zh-CN/shell.md)
+
+The zsh portion is bootstrapped by a small block in `~/.zshrc`:
 
 ```zsh
 # >>> dotgraft >>>
-# 由 dotgraft 管理，请勿手动编辑本区块
-# 机器本地配置请写到 ~/.config/zsh/conf.d/90-local.zsh
+# Managed by dotgraft. Do not edit this block manually.
+# Put machine-local configuration in ~/.config/zsh/conf.d/90-local.zsh
 source "$HOME/.config/zsh/init.zsh"
 # <<< dotgraft <<<
 ```
 
-`init.zsh` 做三件事：把 `~/.local/bin` 放进 `PATH`、准备 Homebrew 前缀变量、按序 source `conf.d/*.zsh`。
+`init.zsh` does three things: adds `~/.local/bin` to `PATH`, prepares Homebrew prefix variables, and sources `conf.d/*.zsh` in order.
 
-片段清单和加载顺序见[配置架构](configuration.md#片段加载顺序)。
+For the fragment list and load order, see [Configuration architecture](configuration.md#fragment-load-order).
 
-## Starship（提示符）
+## Starship (prompt)
 
-`~/.config/starship.toml` 是 Starship 官方 `catppuccin-powerline` 预设，加了两套 Dotgraft 调色板和主题联动。
+`~/.config/starship.toml` is Starship's official `catppuccin-powerline` preset, with two Dotgraft palettes and theme integration added.
 
-仍然保留的关键改动：
+The key change that is retained:
 
 ```
 [line_break]
 disabled = false
 ```
 
-默认是 `true`，也就是提示符独占一行、输入和它挤在一起。改成 `false` 后彩虹条占第一行、输入符号落到第二行，输入时永远有整行可用。
+The default is `true`, which means the prompt occupies its own line and input is squeezed onto it. Setting it to `false` puts the rainbow bar on the first line and the input symbol on the second, so there is always a full line available while typing.
 
-配色梯度：`red → peach → yellow → green → sapphire → lavender`，每个色块对应一类信息：用户 → 路径 → Git → 语言版本。
+Color gradient: `red → peach → yellow → green → sapphire → lavender`; each colored block corresponds to a category of information: user → path → Git → language version.
 
-`starship.toml.tmpl` 会根据 Ghostty 主题自动选择调色板：
+`starship.toml.tmpl` automatically selects a palette based on the Ghostty theme:
 
-| Ghostty 主题 | Starship palette |
+| Ghostty theme | Starship palette |
 |---|---|
 | `Dotgraft Ink` | `dotgraft_ink` |
 | `Dotgraft Paper` | `dotgraft_paper` |
 | `Dotgraft Porcelain` | `dotgraft_porcelain` |
 | `Catppuccin Latte` / `GitHub Light Default` | `catppuccin_latte` |
 | `Catppuccin Frappe` | `catppuccin_frappe` |
-| 其他深色主题 | `catppuccin_mocha` |
+| Other dark themes | `catppuccin_mocha` |
 
-也可以手动改 `palette`；可选的 Dotgraft 调色板是 `dotgraft_ink` / `dotgraft_paper` / `dotgraft_porcelain`。
+You can also change `palette` manually; the available Dotgraft palettes are `dotgraft_ink` / `dotgraft_paper` / `dotgraft_porcelain`.
 
-### 同步上游预设
+### Syncing the upstream preset
 
-预设内部有大量隐式依赖，**不要逐行手改**。要升级就整份替换：
+The preset has many implicit internal dependencies. **Do not edit it line by line.** To upgrade, replace the whole file:
 
 ```bash
 starship preset catppuccin-powerline -o /tmp/new.toml
-# 不要直接覆盖：先对比，把上游变化合并进 dot_config/starship.toml.tmpl
+# Do not overwrite directly: compare first, then merge upstream changes into dot_config/starship.toml.tmpl
 ```
 
-合并时要保留：
+When merging, retain:
 
 - `line_break.disabled = false`
-- 顶部的 palette 条件块
+- The conditional palette block at the top
 - `palettes.dotgraft_ink` / `palettes.dotgraft_paper` / `palettes.dotgraft_porcelain`
 
-文件头记录了所依据的上游版本（当前 1.27.0）。写版本号的目的是下次同步时知道从哪跳过来。
+The file header records the upstream version it is based on (currently 1.27.0). Recording the version makes it clear where to jump from during the next sync.
 
-## 三个插件
+## Three plugins
 
-三个独立插件，不引入框架。只加载需要的功能，减少启动开销。
+Three independent plugins, with no framework. Only the needed features are loaded, reducing startup overhead.
 
 ### zsh-autosuggestions
 
-输入时在光标后用灰色显示一条历史建议，按 `→` 或 `Ctrl+F` 接受。
+While typing, a history suggestion appears in gray after the cursor. Press `→` or `Ctrl+F` to accept it.
 
-Dotgraft 把接受键改成了 `Ctrl+F`：默认的 `→` 在行中间会被 `forward-char` 抢走，很别扭；`Ctrl+F` 原本也是 `forward-char`，覆盖它代价最小。
+Dotgraft changes the accept key to `Ctrl+F`: the default `→` is captured by `forward-char` in the middle of a line, which is awkward; `Ctrl+F` was originally `forward-char` too, so overriding it has the lowest cost.
 
 ### zsh-syntax-highlighting
 
-边输入边着色：命令存在 → 绿色，不存在 → 红色，字符串高亮，路径存在 → 下划线。不用等回车才发现 `command not found`。
+Colors input as you type: existing commands → green, nonexistent commands → red, strings highlighted, existing paths → underlined. You do not have to wait for Enter to discover `command not found`.
 
-它靠 hook 每个键位的 ZLE widget 工作，**必须最后加载**，所以固定是 `99-highlighting.zsh`。放在 `90-local.zsh` 之后，意味着你本地加的东西也有高亮。
+It works by hooking the ZLE widget for every key press and **must load last**, so it is always `99-highlighting.zsh`. Being after `90-local.zsh` means anything you add locally is also highlighted.
 
 ### zsh-completions
 
-扩展几百个命令的参数补全（git、docker、brew、kubectl 等）。
+Extends argument completion for hundreds of commands (git, docker, brew, kubectl, and others).
 
-它在 `20-completion.zsh` 里把两个目录加进 `fpath`：
+`20-completion.zsh` adds two directories to `fpath`:
 
 ```text
 $HOMEBREW_PREFIX/share/zsh-completions
 $HOMEBREW_PREFIX/share/zsh/site-functions
 ```
 
-前者来自 `zsh-completions`；后者是 Homebrew 工具（`gh`、`chezmoi`、`kubectl` 等）安装补全的位置。加完再跑 `compinit`。
+The first comes from `zsh-completions`; the second is where Homebrew tools (`gh`, `chezmoi`, `kubectl`, etc.) install their completions. After adding them, it runs `compinit`.
 
-注意这里会**再跑一次** `compinit`，即使是重复调用。原因是 `~/.zshrc` 里可能有别的工具（比如 OpenSpec）在本区块之前就调用过，它们不知道我们后面又加了 `fpath`。重复调用的代价是几十毫秒，换来新目录真被扫描。
+Note that this runs `compinit` **again**, even if it was already called. The reason is that other tools in `~/.zshrc` (such as OpenSpec) may have called it before this block and did not know we would add `fpath` later. The cost of a repeated call is a few tens of milliseconds, and the new directories are actually scanned.
 
-配合两行 zstyle：`menu select` 让 Tab 候选可上下移动，`matcher-list` 让补全大小写不敏感（`cd down` 能补出 `Downloads`）。
+Two zstyle lines work with it: `menu select` lets you move up and down through Tab candidates, and `matcher-list` makes completion case-insensitive (`cd down` can complete to `Downloads`).
 
-另外启用了两个补全选项：
+Two completion options are also enabled:
 
-- `ALWAYS_TO_END`：补全后把光标移到词尾
-- `COMPLETE_IN_WORD`：允许在单词中间开始补全
+- `ALWAYS_TO_END`: move the cursor to the end of the word after completing
+- `COMPLETE_IN_WORD`: allow completion to start in the middle of a word
 
-`compinit -u` 里的 `-u` 是必要的：Homebrew 目录大多 root 所有，zsh 默认会拒绝使用这种「不安全」目录。
+The `-u` in `compinit -u` is necessary: most Homebrew directories are owned by root, and zsh refuses to use such "insecure" directories by default.
 
-## 五个 CLI 工具
+## Five CLI tools
 
-都是选配，没勾就不装、对应片段也不下发。
+All are optional. If not selected, they are not installed and their fragments are not deployed.
 
-| 工具 | 用法 | 说明 |
+| Tool | Usage | Notes |
 |---|---|---|
-| **fzf** | `Ctrl+R` 搜历史，`Ctrl+T` 搜文件，`**<Tab>` 补全 | 比如 `cd **<Tab>` 弹目录列表，`kill **<Tab>` 列进程 |
-| **zoxide** | `z foo` 跳到常去的目录，`zi foo` 交互式选择 | 按访问频率和时间排序，数据自动衰减 |
-| **eza** | `ls` / `ll` / `lt` | 图标、颜色、目录优先 |
-| **bat** | `cat` | 语法高亮 |
-| **yazi** | `y` | 文件管理器，退出后自动 cd |
+| **fzf** | `Ctrl+R` searches history, `Ctrl+T` searches files, `**<Tab>` completes | For example, `cd **<Tab>` shows a directory list, `kill **<Tab>` lists processes |
+| **zoxide** | `z foo` jumps to frequently used directories, `zi foo` selects interactively | Ranks by visit frequency and recency, with automatic data decay |
+| **eza** | `ls` / `ll` / `lt` | Icons, colors, directories first |
+| **bat** | `cat` | Syntax highlighting |
+| **yazi** | `y` | File manager that changes directory automatically on exit |
 
-fzf 的初始化有个细节：
+fzf initialization has one detail:
 
 ```zsh
 _dotgraft_fzf_init="$(fzf --zsh 2>/dev/null)"
 [[ -n "$_dotgraft_fzf_init" ]] && eval "$_dotgraft_fzf_init"
 ```
 
-`--zsh` 是 fzf 0.48 之后的新接口，老版本会直接报错。先取一次输出、拿得到才 eval，避免在不支持的版本上往当前 shell 里灌错误。
+`--zsh` is the new interface added after fzf 0.48; older versions error immediately. The script captures the output once and evals only if it is non-empty, avoiding dumping errors into the current shell on unsupported versions.
 
-### zoxide 的一个注意点
+### One caveat for zoxide
 
-**不要写 `alias cd="z"`。** zoxide 靠 hook `cd` 来记录访问，一旦把 `cd` 换成 `z`，它就记不到新目录，数据库会停止更新。直接用 `z` 就好。
+**Do not write `alias cd="z"`.** zoxide hooks `cd` to record visits. Once `cd` is replaced with `z`, it can no longer record new directories and the database stops updating. Just use `z` directly.
 
-## 别名与函数
+## Aliases and functions
 
 ### eza
 
@@ -140,11 +142,11 @@ lt  →  eza --tree --icons --level=2
 cat  →  bat --paging=never --style=plain
 ```
 
-`--paging=never` 让行为和 `cat` 完全一致，不会卡在分页器里；`--style=plain` 去掉行号和网格，只留语法高亮。
+`--paging=never` makes behavior identical to `cat`, with no getting stuck in a pager; `--style=plain` removes line numbers and the grid, leaving only syntax highlighting.
 
-**副作用**：从此 `cat` 不再是 `cat`。脚本里要读原始内容必须用 `command cat`。`50-functions.zsh` 里的 `y` 函数就是这么写的——它要读一个临时文件，`bat` 的分页和格式化会出乱子。
+**Side effect**: from then on, `cat` is no longer `cat`. Scripts that need to read raw content must use `command cat`. The `y` function in `50-functions.zsh` is written this way—it needs to read a temporary file, and `bat`'s paging and formatting would cause problems.
 
-### y 函数
+### The y function
 
 ```zsh
 function y() {
@@ -159,46 +161,46 @@ function y() {
 }
 ```
 
-yazi 支持 `--cwd-file`，退出时把最后的目录写进指定文件，再读回来 `cd`。这样 `y` 退出后 shell 停在浏览到的目录，省掉一步 `cd`。
+yazi supports `--cwd-file`, writing the final directory to the specified file on exit; the function reads it back and runs `cd`. This way, after `y` exits, the shell stays in the directory you navigated to, saving a `cd` step.
 
-两处刻意写法：`command cat` 绕开上面的 `cat → bat` 别名，`builtin cd` 绕开任何人可能定义的 `cd` 别名或函数。
+Two deliberate choices: `command cat` bypasses the `cat → bat` alias above, and `builtin cd` bypasses any `cd` alias or function someone might define.
 
-## 历史记录
+## History
 
 ```
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=50000
 SAVEHIST=50000
-setopt EXTENDED_HISTORY      # 记录开始时间，history -i 可看
-setopt SHARE_HISTORY         # 多窗口共享，且立即写盘
-setopt HIST_IGNORE_ALL_DUPS  # 重复命令只留最新
-setopt HIST_IGNORE_SPACE     # 命令前加空格则不记录
+setopt EXTENDED_HISTORY      # Record start time; view with history -i
+setopt SHARE_HISTORY         # Share across windows and write immediately
+setopt HIST_IGNORE_ALL_DUPS  # Keep only the latest duplicate command
+setopt HIST_IGNORE_SPACE     # Do not record commands prefixed with a space
 ```
 
-`HISTFILE` 显式写死，是为了即使将来 `ZDOTDIR` 有变化，历史也不会换地方。macOS 的 `/etc/zshrc` 默认是 `${ZDOTDIR:-$HOME}/.zsh_history`，也就是同一路径。
+`HISTFILE` is set explicitly so history stays in the same place even if `ZDOTDIR` changes in the future. macOS's `/etc/zshrc` defaults to `${ZDOTDIR:-$HOME}/.zsh_history`, which is the same path.
 
-`HIST_IGNORE_SPACE` 用来处理临时粘贴的敏感内容：命令前敲一个空格就不会进历史。
+`HIST_IGNORE_SPACE` handles sensitive content pasted temporarily: prefix a command with a space and it will not enter history.
 
-## 短别名与补全
+## Short alias and completion
 
-正式命令是 `dotgraft`。`80-dotgraft.zsh` 会在 `dotg` **未被占用**时添加：
+The official command is `dotgraft`. `80-dotgraft.zsh` adds the alias when `dotg` is **not already taken**:
 
 ```zsh
 alias dotg='dotgraft'
 ```
 
-检测用的是 `whence -w dotg`，会同时检查命令、别名和函数；如果用户已经有 `dotg`，不会覆盖。
+It checks with `whence -w dotg`, which examines commands, aliases, and functions together; if the user already has `dotg`, it is not overridden.
 
-补全同时注册给两个名字：
+Completion is registered for both names:
 
 ```bash
 dotgraft <Tab>
 dotg <Tab>
 ```
 
-子命令包括 `status` / `diff` / `apply` / `update` / `deps` / `theme` / `backup` / `restore` / `reconfigure` / `edit` / `cd` / `chezmoi` / `doctor` / `version` / `uninstall` / `help`。`edit` 会继续用 zsh 的文件补全补目标路径。
+Subcommands include `status` / `diff` / `apply` / `update` / `deps` / `theme` / `backup` / `restore` / `reconfigure` / `edit` / `cd` / `chezmoi` / `doctor` / `version` / `uninstall` / `help`. `edit` continues to use zsh's file completion for target paths.
 
-如果补全没有生效，先确认 `20-completion.zsh` 已经执行过 `compinit`：
+If completion does not work, first confirm that `20-completion.zsh` has already run `compinit`:
 
 ```bash
 whence -w _dotgraft
@@ -206,24 +208,24 @@ print ${_comps[dotgraft]}
 print ${_comps[dotg]}
 ```
 
-预期都指向 `_dotgraft`。
+Both are expected to point to `_dotgraft`.
 
-## 快捷键
+## Shortcuts
 
-| 快捷键 | 作用 |
+| Shortcut | Effect |
 |---|---|
-| `Ctrl+F` | 接受 autosuggestions 的建议 |
-| `Ctrl+R` | fzf 模糊搜索历史命令 |
-| `Ctrl+T` | fzf 模糊搜索文件 |
-| `Tab` | 补全，连按可在候选列表里移动 |
-| `**<Tab>` | 触发 fzf 补全 |
+| `Ctrl+F` | Accept an autosuggestions suggestion |
+| `Ctrl+R` | Fuzzy-search history with fzf |
+| `Ctrl+T` | Fuzzy-search files with fzf |
+| `Tab` | Complete; press repeatedly to move through the candidate list |
+| `**<Tab>` | Trigger fzf completion |
 
-Ghostty 自身的窗口操作见 [Ghostty 文档](ghostty.md#快捷键)。
+For Ghostty's own window operations, see the [Ghostty documentation](ghostty.md#shortcuts).
 
-## 加自己的东西
+## Adding your own configuration
 
-写在 `~/.config/zsh/conf.d/90-local.zsh`。它用 `create_` 管理：只在不存在时创建，之后 `dotgraft apply` 不会覆盖。
+Put it in `~/.config/zsh/conf.d/90-local.zsh`. It is managed with `create_`: it is created only when missing, and later `dotgraft apply` runs do not overwrite it.
 
-不要在 `~/.zshrc` 的 dotgraft 区块里写任何东西——`dotgraft update` 会重写那个区块。
+Do not write anything inside the dotgraft block in `~/.zshrc`—`dotgraft update` rewrites that block.
 
-想在仓库里长期维护，就按[配置架构](configuration.md#怎么加东西)的说明新增片段。
+To maintain something in the repository long-term, add a fragment as described in [Configuration architecture](configuration.md#adding-things).

@@ -94,9 +94,13 @@ The default chezmoi source/configuration, `~/.zprofile`, and `~/.zshenv` are not
 
 Separate source directories do not prevent conflicts if another configuration manager owns the same target files. Review the installation summary first.
 
-## Documentation
+## Language
 
-The detailed guides below are currently in Chinese; English versions are being prepared.
+The `dotgraft` command uses English or Simplified Chinese for its output. Set `DOTGRAFT_LANG=en` or `DOTGRAFT_LANG=zh` to override the detected language. Otherwise Dotgraft checks `LC_ALL`, then `LC_MESSAGES`, then `LANG`; if those are missing or set to `C`, `POSIX`, `C.UTF-8`, or `C.utf8`, it uses the first preferred macOS UI language from `AppleLanguages`. Unknown locales and unsupported values fall back to English. Dotgraft does not change the locale variables, so external tools keep their own locale behavior.
+
+The guides below are available in English and [简体中文](docs/zh-CN/usage.md). Each guide has a language link at the top.
+
+## Documentation
 
 | Guide | Contents |
 |---|---|

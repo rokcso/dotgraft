@@ -1,43 +1,45 @@
-# 使用与维护
+# Usage and maintenance
 
-安装之后的日常操作、文件落点、备份恢复和卸载。
+English · [简体中文](zh-CN/usage.md)
 
-## 安装后
+Everyday operations after installation, file locations, backup and restore, and uninstall.
 
-安装完成后：
+## After installation
+
+When installation finishes:
 
 ```bash
 exec zsh
 dotgraft status
 ```
 
-`dotgraft status` 会显示当前主题、工具选配、文件差异和版本。如果 Ghostty 已经打开，按 `Cmd + Shift + ,` 重载配置。
+`dotgraft status` shows the current theme, selected tools, file differences, and version. If Ghostty is already open, press `Cmd + Shift + ,` to reload the configuration.
 
-## 日常命令
+## Everyday commands
 
-| 命令 | 作用 |
+| Command | Purpose |
 |---|---|
-| `dotgraft status` | 选配、文件差异、版本 |
-| `dotgraft diff` | 默认显示文件摘要 |
-| `dotgraft diff --full` | 完整逐行 diff |
-| `dotgraft apply` | 预览、确认、应用 |
-| `dotgraft update` | 拉取上游、预览、应用，并修复依赖 |
-| `dotgraft deps` | 无条件安装/修复 Homebrew 依赖 |
-| `dotgraft reconfigure` | 重新选配，并修复依赖 |
-| `dotgraft theme [ink\|paper\|porcelain\|list]` | 切换主题 |
-| `dotgraft backup [list\|show <时间戳>]` | 查看备份 |
-| `dotgraft restore <时间戳>` | 从备份恢复 |
-| `dotgraft edit <文件>` | 编辑受管文件的仓库副本 |
-| `dotgraft cd` | 进入 Dotgraft 的 chezmoi 源目录 |
-| `dotgraft chezmoi <args>` | 在 Dotgraft 的 source/config 上执行 chezmoi |
-| `dotgraft doctor` | Dotgraft 环境自检 |
-| `dotgraft chezmoi doctor` | 完整 chezmoi 诊断 |
-| `dotgraft version` | 版本和 source commit |
-| `dotgraft uninstall` | 卸载 |
+| `dotgraft status` | Selections, file differences, and version |
+| `dotgraft diff` | Show a file summary by default |
+| `dotgraft diff --full` | Show the complete line-by-line diff |
+| `dotgraft apply` | Preview, confirm, and apply |
+| `dotgraft update` | Pull upstream changes, preview, apply, and repair dependencies |
+| `dotgraft deps` | Install or repair Homebrew dependencies unconditionally |
+| `dotgraft reconfigure` | Choose options again and repair dependencies |
+| `dotgraft theme [ink\|paper\|porcelain\|list]` | Switch themes |
+| `dotgraft backup [list\|show <timestamp>]` | Inspect backups |
+| `dotgraft restore <timestamp>` | Restore from a backup |
+| `dotgraft edit <file>` | Edit the repository copy of a managed file |
+| `dotgraft cd` | Enter Dotgraft's chezmoi source directory |
+| `dotgraft chezmoi <args>` | Run chezmoi against Dotgraft's source and config |
+| `dotgraft doctor` | Check the Dotgraft environment |
+| `dotgraft chezmoi doctor` | Run the full chezmoi diagnostics |
+| `dotgraft version` | Show the version and source commit |
+| `dotgraft uninstall` | Uninstall |
 
-`dotgraft diff` 默认只列文件摘要，避免首次安装时打印整份新文件。需要逐行补丁时用 `dotgraft diff --full`。
+`dotgraft diff` lists only a file summary by default, avoiding a full printout of every new file on first installation. Use `dotgraft diff --full` when you need the line-by-line patch.
 
-安装后如果 `dotg` 没有被其他命令占用，会得到一个短别名：
+After installation, if no other command already uses `dotg`, a short alias is available:
 
 ```bash
 dotg status
@@ -45,25 +47,25 @@ dotg update
 dotg deps
 ```
 
-`dotgraft` 和 `dotg` 都支持子命令补全。`dotg` 已被占用时不会覆盖，继续用完整的 `dotgraft`。
+Both `dotgraft` and `dotg` support subcommand completion. If `dotg` is already taken, it is not overridden; continue using the full `dotgraft` command.
 
-## 选配
+## Options
 
-安装时会问三项，答案写在 `~/.config/dotgraft/chezmoi.toml`，不进仓库：
+Installation asks three questions. The answers are written to `~/.config/dotgraft/chezmoi.toml` and are not committed to the repository:
 
-| 问题 | 作用 |
+| Question | Effect |
 |---|---|
-| CLI 工具 | fzf / zoxide / eza / bat / yazi。没勾选的不安装，对应配置片段也会删除；已安装的 Homebrew 包不会卸载 |
-| Ghostty 主题 | Dotgraft Ink（默认）、Paper、Porcelain，或内置主题 |
-| 毛玻璃 | macOS 26+ 默认原生玻璃，更旧的系统默认数字模糊 |
+| CLI tools | fzf / zoxide / eza / bat / yazi. Unchecked tools are not installed, and their configuration fragments are removed; Homebrew packages that are already installed are not uninstalled |
+| Ghostty theme | Dotgraft Ink (default), Paper, Porcelain, or a built-in theme |
+| Glass | macOS 26+ defaults to native glass; older systems default to numeric blur |
 
-随时可以改：
+You can change these at any time:
 
 ```bash
 dotgraft reconfigure
 ```
 
-非交互环境可以用环境变量跳过菜单：
+In non-interactive environments, environment variables can bypass the menus:
 
 ```bash
 DOTGRAFT_THEME="Dotgraft Paper" \
@@ -71,28 +73,28 @@ DOTGRAFT_GLASS=false \
   dotgraft reconfigure
 ```
 
-选配的实现方式见 [配置架构](configuration.md#选配是怎么生效的)。
+For how options are implemented, see [Configuration architecture](configuration.md#how-choices-take-effect).
 
-## 主题
+## Themes
 
 ```bash
-dotgraft theme            # 查看当前主题和可选主题
-dotgraft theme ink        # 深色
-dotgraft theme paper      # 暖光浅色
-dotgraft theme porcelain  # 冷光浅色
+dotgraft theme            # Show the current theme and available themes
+dotgraft theme ink        # Dark
+dotgraft theme paper      # Warm light
+dotgraft theme porcelain  # Cool light
 ```
 
-`dotgraft theme` 只修改 Ghostty 和 Starship，不重新询问工具或毛玻璃。切换后：
+`dotgraft theme` changes only Ghostty and Starship; it does not ask about tools or glass again. After switching:
 
 ```bash
 exec zsh
 ```
 
-再在 Ghostty 里按 `Cmd + Shift + ,` 重载。完整色板和对比度见 [Themes](themes.md)。
+Then press `Cmd + Shift + ,` in Ghostty to reload. For the full palettes and contrast ratios, see [Themes](themes.md).
 
-## 本地开发安装
+## Local development installation
 
-正式安装默认从 GitHub `main` clone。开发时想安装本地当前提交：
+A normal installation clones from GitHub `main` by default. To install the current local commit during development:
 
 ```bash
 cd /Users/lin/Developer/GitHub-rokcso/dotgraft
@@ -101,13 +103,13 @@ exec zsh
 dotg status
 ```
 
-注意：
+Notes:
 
-- `DOTGRAFT_REPO="$PWD"` 只会 clone **已经 commit 的 HEAD**，不会带上未提交改动。
-- 安装后，`~/.local/share/chezmoi-dotgraft` 的 `origin` 是本地仓库路径，后续 commit 后可以直接 `dotg update`。
-- 想改回从 GitHub 更新，重新用默认 bootstrap 安装，或手动修改 source 的 remote。
+- `DOTGRAFT_REPO="$PWD"` clones only the **committed HEAD**; uncommitted changes are not included.
+- After installation, `origin` in `~/.local/share/chezmoi-dotgraft` points to the local repository path. After later commits, you can run `dotg update` directly.
+- To switch back to GitHub updates, reinstall with the default bootstrap or manually change the source remote.
 
-不想每改一次就 commit，可以直接让 `dotgraft` 使用工作区作为 source：
+If you do not want to commit after every change, you can make `dotgraft` use the working tree as its source:
 
 ```bash
 DOTGRAFT_SOURCE="$PWD" \
@@ -119,87 +121,87 @@ DOTGRAFT_CONFIG="$HOME/.config/dotgraft/chezmoi.toml" \
 dotgraft apply
 ```
 
-这会用当前工作区（包括未提交改动）直接同步到真实 `$HOME`。改 shell 配置后记得 `exec zsh`。
+This syncs the current working tree, including uncommitted changes, directly to the real `$HOME`. After changing shell configuration, remember to run `exec zsh`.
 
-## 文件落点
+## File locations
 
-受管目标集中在家目录的几处路径。不用 `sudo`，不动 `/etc`，`~/.zprofile` 和 `~/.zshenv` 永不修改。
+Managed targets are concentrated in a few paths under the home directory. Dotgraft does not use `sudo`, does not modify `/etc`, and never modifies `~/.zprofile` or `~/.zshenv`.
 
-| 路径 | 内容 | 方式 |
+| Path | Contents | Method |
 |---|---|---|
-| `~/.zshrc` | 末尾一小段标记区块 | 原地编辑，只动区块 |
-| `~/.config/zsh/` | zsh 配置 | 完全接管 |
-| `~/.config/zsh/conf.d/90-local.zsh` | 机器专属配置 | 只创建一次 |
-| `~/.config/ghostty/config` | Ghostty 配置 | 完全接管，走模板 |
-| `~/.config/ghostty/themes/` | Dotgraft Ink / Paper / Porcelain | 完全接管 |
-| `~/.config/starship.toml` | Starship 配置 | 完全接管 |
-| `~/.local/bin/dotgraft` | 命令本体 | 完全接管 |
-| `~/.config/dotgraft/chezmoi.toml` | 选配答案 | 本机生成，不进仓库 |
+| `~/.zshrc` | A small marked block at the end | Edited in place; only the block is touched |
+| `~/.config/zsh/` | zsh configuration | Fully managed |
+| `~/.config/zsh/conf.d/90-local.zsh` | Machine-specific configuration | Created once |
+| `~/.config/ghostty/config` | Ghostty configuration | Fully managed; rendered from a template |
+| `~/.config/ghostty/themes/` | Dotgraft Ink / Paper / Porcelain | Fully managed |
+| `~/.config/starship.toml` | Starship configuration | Fully managed |
+| `~/.local/bin/dotgraft` | The command itself | Fully managed |
+| `~/.config/dotgraft/chezmoi.toml` | Option answers | Generated locally; never committed |
 
-此外会创建或修改：
+Dotgraft also creates or modifies:
 
-| 路径 | 内容 |
+| Path | Contents |
 |---|---|
-| `~/.local/share/chezmoi-dotgraft` | 独立 chezmoi 源目录（git clone） |
-| `~/.config-backup/<时间戳>/` | 已有目标文件、Ghostty 覆盖文件和选配答案的备份 |
-| `~/Library/Application Support/com.mitchellh.ghostty/config` | 如果存在，会备份并移开，避免覆盖主题 |
+| `~/.local/share/chezmoi-dotgraft` | Separate chezmoi source directory (git clone) |
+| `~/.config-backup/<timestamp>/` | Backups of existing target files, the Ghostty override file, and option answers |
+| `~/Library/Application Support/com.mitchellh.ghostty/config` | If present, backed up and moved aside so it cannot override the theme |
 
-默认的 `~/.local/share/chezmoi` 和 `~/.config/chezmoi/` 不会被写入。
+The default `~/.local/share/chezmoi` and `~/.config/chezmoi/` are not written to.
 
-## 备份与恢复
+## Backup and restore
 
-安装、卸载和 `restore` 会把备份写到：
+Installation, uninstall, and `restore` write backups to:
 
 ```text
-~/.config-backup/<时间戳>/
+~/.config-backup/<timestamp>/
 ```
 
-查看：
+Inspect them:
 
 ```bash
 dotgraft backup list
-dotgraft backup show <时间戳>
+dotgraft backup show <timestamp>
 ```
 
-恢复：
+Restore:
 
 ```bash
-dotgraft restore <时间戳>
-dotgraft restore <时间戳> --pre-existing     # 安装前的原始文件
-dotgraft restore <时间戳> --yes              # 非交互
+dotgraft restore <timestamp>
+dotgraft restore <timestamp> --pre-existing     # Original files from before installation
+dotgraft restore <timestamp> --yes              # Non-interactive
 ```
 
-`restore` 会先列出待恢复文件，并在恢复前把当前状态再备份一份。恢复 shell 配置后执行 `exec zsh`，Ghostty 按 `Cmd + Shift + ,` 重载。
+`restore` first lists the files to restore and backs up the current state before restoring. After restoring shell configuration, run `exec zsh`; in Ghostty, press `Cmd + Shift + ,` to reload.
 
-如果已经卸载、`dotgraft` 不在 `PATH` 里，可以直接运行备份中的命令：
+If Dotgraft has already been uninstalled and is not on `PATH`, run the command from the backup directly:
 
 ```bash
-~/.config-backup/<时间戳>/files/.local/bin/dotgraft restore <时间戳>
+~/.config-backup/<timestamp>/files/.local/bin/dotgraft restore <timestamp>
 ```
 
-需要恢复 bootstrap 移开的 macOS Ghostty 覆盖文件时，加 `--with-ghostty-override`。
+To restore the macOS Ghostty override file that bootstrap moved aside, add `--with-ghostty-override`.
 
-## 卸载
+## Uninstall
 
 ```bash
 dotgraft uninstall
 ```
 
-卸载会先把所有受管文件、`~/.zshrc`、`~/.config/dotgraft/chezmoi.toml` 备份到 `~/.config-backup/<时间戳>/`（受管文件在 `files/` 下），然后删除受管文件、移除 `~/.zshrc` 里的标记区块、清理空目录，并在存在时恢复 bootstrap 移开的 Ghostty 覆盖配置。**不会**卸载 Homebrew 包。
+Uninstall first backs up all managed files, `~/.zshrc`, and `~/.config/dotgraft/chezmoi.toml` to `~/.config-backup/<timestamp>/` (managed files are under `files/`). It then deletes managed files, removes the marked block from `~/.zshrc`, cleans up empty directories, and restores the Ghostty override configuration moved aside by bootstrap if it exists. It does **not** uninstall Homebrew packages.
 
-安全边界：
+Safety boundaries:
 
-- `~/.zshrc` 里的 dotgraft 区块不完整时，卸载会拒绝执行，避免误删后面的内容。
-- `~/.zshrc` 是软链接时，会编辑它指向的真实文件并保留链接；备份里会记录 `.zshrc.symlink`。
-- 当前 source 里混有 Dotgraft 之外的受管文件时，卸载会列出并停止。
-- 只有当 Dotgraft 的独立 source 是干净克隆（无未提交改动、无未推送提交、remote 像 dotgraft）时，才会执行 `chezmoi purge`；否则保留 source。
+- If the dotgraft block in `~/.zshrc` is incomplete, uninstall refuses to run so it cannot accidentally delete content after the block.
+- If `~/.zshrc` is a symbolic link, Dotgraft edits the real file it points to and preserves the link; the backup records `.zshrc.symlink`.
+- If the current source contains managed files that are not part of Dotgraft, uninstall lists them and stops.
+- `chezmoi purge` runs only when Dotgraft's separate source is a clean clone (no uncommitted changes, no unpushed commits, and a remote that looks like dotgraft); otherwise the source is kept.
 
-`chezmoi purge` 单独运行不会删除目标文件，这是 chezmoi 的预期行为。正确卸载用 `dotgraft uninstall`。
+Running `chezmoi purge` on its own does not delete target files; this is chezmoi's expected behavior. Use `dotgraft uninstall` for a proper uninstall.
 
-## 版本
+## Version
 
 ```bash
 dotgraft version
 ```
 
-当前版本号见 `VERSION`，变更见 [CHANGELOG.md](../CHANGELOG.md)。发布和 CI 流程见 [配置架构](configuration.md#ci)。
+The current version number is in `VERSION`; changes are listed in [CHANGELOG.md](../CHANGELOG.md). For the release and CI process, see [Configuration architecture](configuration.md#ci).

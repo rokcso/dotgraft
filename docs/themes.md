@@ -1,14 +1,16 @@
 # Dotgraft Theme
 
-Dotgraft 自带三套内置主题，都是 Ghostty 主题文件，同时配套 Starship 调色板：
+English · [简体中文](zh-CN/themes.md)
 
-| 名称 | 模式 | Ghostty 文件 | Starship palette |
+Dotgraft ships three built-in themes. All are Ghostty theme files with matching Starship palettes:
+
+| Name | Mode | Ghostty file | Starship palette |
 |---|---|---|---|
-| **Dotgraft Ink** | 深色，默认 | `Dotgraft Ink` | `dotgraft_ink` |
-| **Dotgraft Paper** | 浅色暖光 | `Dotgraft Paper` | `dotgraft_paper` |
-| **Dotgraft Porcelain** | 浅色冷光 | `Dotgraft Porcelain` | `dotgraft_porcelain` |
+| **Dotgraft Ink** | Dark, default | `Dotgraft Ink` | `dotgraft_ink` |
+| **Dotgraft Paper** | Warm light | `Dotgraft Paper` | `dotgraft_paper` |
+| **Dotgraft Porcelain** | Cool light | `Dotgraft Porcelain` | `dotgraft_porcelain` |
 
-主题文件安装在：
+Theme files are installed at:
 
 ```text
 ~/.config/ghostty/themes/Dotgraft Ink
@@ -16,71 +18,71 @@ Dotgraft 自带三套内置主题，都是 Ghostty 主题文件，同时配套 S
 ~/.config/ghostty/themes/Dotgraft Porcelain
 ```
 
-## 颜色角色
+## Color roles
 
-三套主题共用一组颜色角色，方便在深色和浅色之间保持一致的语义：
+All three themes share a set of color roles so semantics stay consistent between dark and light modes:
 
-- **Ground**：代码阅读区的底色
-- **Ink**：正文
-- **Graft Green**：品牌绿，同时用于绿色 ANSI 和选区
-- **Dot**：光标与焦点（琥珀 / 铜 / 蓝）
-- **Alert / Signal**：错误与信息
+- **Ground**: the base color of the code-reading area
+- **Ink**: body text
+- **Graft Green**: the brand green, also used for ANSI green and selections
+- **Dot**: cursor and focus (amber / copper / blue)
+- **Alert / Signal**: errors and information
 
-Ink 是深色主题：深绿墨底、暖白前景、琥珀光标。Paper 是暖光浅色：暖纸底、墨绿前景、铜色光标。Porcelain 是冷光浅色：冷白底、蓝黑前景、蓝色光标。
+Ink is the dark theme: dark green ink ground, warm white foreground, amber cursor. Paper is a warm light theme: warm paper ground, ink-green foreground, copper cursor. Porcelain is a cool light theme: cool white ground, blue-black foreground, blue cursor.
 
-三套主题只设置颜色相关配置。不要在主题文件里设置 `theme`、`config-file`、`keybind` 或 `background-image`。
+All three themes set only color-related configuration. Do not set `theme`, `config-file`, `keybind`, or `background-image` in a theme file.
 
-## 角色规则
+## Role rules
 
 ```text
-Ground / Ink / Dot  → 底色、正文、光标
-Graft Green         → 品牌绿，也用于绿色 ANSI 和选区
-Alert / Signal      → 错误和信息
-ANSI 色相           → 跨主题保持稳定，只调整明度和彩度
-Selection           → Graft tint，不引入额外的强调色
+Ground / Ink / Dot  → ground, body text, cursor
+Graft Green         → brand green, also used for ANSI green and selections
+Alert / Signal      → errors and information
+ANSI hues           → stable across themes; only lightness and chroma are adjusted
+Selection           → Graft tint, no additional accent color
 ```
 
-Paper 和 Porcelain 使用同一个品牌绿；红色、蓝色等保持各自的语义。两套浅色主题主要改变底色、正文、光标和中性色。
+Paper and Porcelain use the same brand green; red, blue, and other colors keep their respective semantics. The two light themes mainly change the ground, body text, cursor, and neutral colors.
 
-## 基础色与对比度
+## Base colors and contrast
 
-对比度按 WCAG 相对亮度计算，文本目标为 AA（4.5:1）以上。
+Contrast is calculated using WCAG relative luminance. The target for text is AA (4.5:1) or better.
 
 ### Dotgraft Ink
 
-| 角色 | Hex | 对背景对比度 |
+| Role | Hex | Contrast against background |
 |---|---|---:|
 | Background | `#121816` | — |
 | Foreground | `#D8E3DA` | **13.63** |
 | Cursor | `#F2B36B` | **9.79** |
-| Selection background | `#345A4A` | 2.32（对背景） |
-| Selection foreground | `#F0F7F2` | **7.13**（对选区背景） |
+| Selection background | `#345A4A` | 2.32 (against background) |
+| Selection foreground | `#F0F7F2` | **7.13** (against selection background) |
 
 ### Dotgraft Paper
 
-| 角色 | Hex | 对背景对比度 |
+| Role | Hex | Contrast against background |
 |---|---|---:|
 | Background | `#F4F1E8` | — |
 | Foreground | `#26302B` | **12.07** |
 | Cursor | `#8F4A14` | **5.89** |
-| Selection background | `#8FBBA1` | 1.90（对背景） |
-| Selection foreground | `#1E3A2F` | **5.75**（对选区背景） |
+| Selection background | `#8FBBA1` | 1.90 (against background) |
+| Selection foreground | `#1E3A2F` | **5.75** (against selection background) |
 
 ### Dotgraft Porcelain
 
-| 角色 | Hex | 对背景对比度 |
+| Role | Hex | Contrast against background |
 |---|---|---:|
 | Background | `#F2F5F7` | — |
 | Foreground | `#1E2A32` | **13.39** |
 | Cursor | `#2A648F` | **5.78** |
-| Selection background | `#9CC5B2` | 1.74（对背景） |
-| Selection foreground | `#17323D` | **7.08**（对选区背景） |
+| Selection background | `#9CC5B2` | 1.74 (against background) |
+| Selection foreground | `#17323D` | **7.08** (against selection background) |
 
-## ANSI 16 色
+## ANSI 16 colors
 
-Paper 和 Porcelain 共用同一组 chromatic ANSI 色；中性色随地面温度微调。Ink 使用同一色相家族的亮色版本。
+Paper and Porcelain share the same chromatic ANSI colors; their neutral colors are slightly adjusted to match the temperature of the ground. Ink uses brighter versions from the same hue family.
 
-| # | 角色 | Ink | Ink 对比度 | Paper | Paper 对比度 | Porcelain | Porcelain 对比度 |
+| # | Role | Ink | Ink contrast | Paper | Paper contrast | Porcelain | Porcelain contrast |
 |---|---|---|---:|---|---:|---|---:|
 | 0 | black | `#212A25` | 1.22 | `#26302B` | 12.07 | `#1E2A32` | 13.39 |
 | 1 | red | `#E06C75` | 5.63 | `#B23A48` | 5.18 | `#B23A48` | 5.34 |
@@ -99,38 +101,38 @@ Paper 和 Porcelain 共用同一组 chromatic ANSI 色；中性色随地面温�
 | 14 | bright cyan | `#8CE8DC` | 12.58 | `#0E5E6C` | 6.56 | `#0E5E6C` | 6.76 |
 | 15 | bright white | `#F2F6F3` | 16.48 | `#D8D3C8` | 1.32 | `#D7E1E7` | 1.21 |
 
-说明：
+Notes:
 
-- ANSI `black` 在深色主题里、ANSI `white` / `bright white` 在浅色主题里，天然不适合正文；它们用于底色、边框或背景块。
-- Paper 是暖光纸面，Porcelain 是冷光瓷面；两者的 chromatic ANSI 色相同，温度由 Ground/Ink/Dot 表达。
-- 红/绿仍遵循终端 ANSI 语义。色盲用户需要配合符号或文字，不能只靠颜色区分 Git 状态。
-- 两套浅色主题的选区都使用 Graft tint；Paper 的选区对地面 1.90:1，Porcelain 为 1.74:1，选中文本分别为 5.75 / 7.08:1。
+- ANSI `black` in dark themes, and ANSI `white` / `bright white` in light themes, are naturally unsuitable for body text; they are used for ground colors, borders, or background blocks.
+- Paper is a warm paper surface, Porcelain a cool porcelain surface; their chromatic ANSI colors are identical, while temperature is expressed through Ground/Ink/Dot.
+- Red/green still follow terminal ANSI semantics. Color-blind users need symbols or text as well; Git status must not rely on color alone.
+- Both light themes use a Graft tint for selections. Paper's selection is 1.90:1 against its ground, Porcelain's is 1.74:1; selected text is 5.75 / 7.08:1 respectively.
 
-## Starship 联动
+## Starship integration
 
-`starship.toml.tmpl` 根据 Ghostty 主题自动选择 palette：
+`starship.toml.tmpl` automatically selects a palette based on the Ghostty theme:
 
-| Ghostty 主题 | Starship palette |
+| Ghostty theme | Starship palette |
 |---|---|
 | Dotgraft Ink | `dotgraft_ink` |
 | Dotgraft Paper | `dotgraft_paper` |
 | Dotgraft Porcelain | `dotgraft_porcelain` |
 | Catppuccin Latte / GitHub Light Default | `catppuccin_latte` |
 | Catppuccin Frappe | `catppuccin_frappe` |
-| 其他深色主题 | `catppuccin_mocha` |
+| Other dark themes | `catppuccin_mocha` |
 
-Starship 的提示符使用多色显示状态；终端背景保持低对比，避免和代码抢注意力。
+Starship's prompt uses multicolor status indicators; the terminal background stays low-contrast so it does not compete with code for attention.
 
-## 切换主题
+## Switching themes
 
-列出当前主题和可用主题：
+List the current theme and available themes:
 
 ```bash
 dotgraft theme
 dotgraft theme list
 ```
 
-切换：
+Switch:
 
 ```bash
 dotgraft theme ink
@@ -138,7 +140,7 @@ dotgraft theme paper
 dotgraft theme porcelain
 ```
 
-也接受完整主题名和内置主题别名：
+Full theme names and built-in theme aliases are also accepted:
 
 ```bash
 dotgraft theme "Dotgraft Ink"
@@ -148,24 +150,24 @@ dotgraft theme mocha
 dotgraft theme latte
 ```
 
-`dotgraft theme` 只改主题，不重新询问工具或毛玻璃。它会更新独立的 `chezmoi.toml`，然后只 apply：
+`dotgraft theme` changes only the theme; it does not ask about tools or glass again. It updates the separate `chezmoi.toml` and then applies only:
 
 ```text
 ~/.config/ghostty/config
 ~/.config/starship.toml
 ```
 
-生效：
+To apply:
 
 ```bash
 exec zsh
 ```
 
-Ghostty 里再按 `Cmd + Shift + ,` 重载。
+Then press `Cmd + Shift + ,` in Ghostty to reload.
 
-## 验证
+## Validation
 
-主题文件：
+Theme files:
 
 ```bash
 ghostty +validate-config --config-file="$HOME/.config/ghostty/themes/Dotgraft Ink"
@@ -173,19 +175,19 @@ ghostty +validate-config --config-file="$HOME/.config/ghostty/themes/Dotgraft Pa
 ghostty +validate-config --config-file="$HOME/.config/ghostty/themes/Dotgraft Porcelain"
 ```
 
-主题查找：
+Theme lookup:
 
 ```bash
 ghostty +list-themes | grep -i dotgraft
 ```
 
-Starship 渲染：
+Starship rendering:
 
 ```bash
 STARSHIP_CONFIG="$HOME/.config/starship.toml" starship prompt
 ```
 
-项目测试：
+Project tests:
 
 ```bash
 bats tests/unit
@@ -193,12 +195,12 @@ bash tests/smoke.sh
 python3 tests/theme-contract.py
 ```
 
-`tests/theme-contract.py` 检查角色一致性、AA 对比度、ANSI 色相稳定和 Starship palette。smoke 覆盖三套主题的 Ghostty 校验、Starship palette、主题切换和受管文件白名单。
+`tests/theme-contract.py` checks role consistency, AA contrast, ANSI hue stability, and Starship palettes. The smoke test covers Ghostty validation for all three themes, Starship palettes, theme switching, and the managed-file allowlist.
 
-## 非目标
+## Non-goals
 
-- 不做图片背景主题
-- 不在主题里放 keybind 或 shell 配置
-- 不把浅色主题做成深色主题的反色版本
-- 暂不随 macOS 深浅色自动切换：Ghostty 支持 `dark:/light:`，但 Starship palette 目前是单值
-- 不做通用主题市场；Ink / Paper / Porcelain 是内置主题，其他 Ghostty 主题作为备选
+- No image-background themes
+- No keybindings or shell configuration inside themes
+- Light themes are not inverted versions of dark themes
+- No automatic macOS light/dark switching for now: Ghostty supports `dark:/light:`, but the Starship palette is currently a single value
+- No general-purpose theme marketplace; Ink / Paper / Porcelain are built-in themes, and other Ghostty themes are available as alternatives

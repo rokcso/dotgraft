@@ -1,56 +1,58 @@
-# Ghostty 配置
+# Ghostty configuration
 
-配置文件由 Dotgraft 管理，位置 `~/.config/ghostty/config`，源文件是 `dot_config/ghostty/config.tmpl`。
+English · [简体中文](zh-CN/ghostty.md)
 
-改完生效方式：
+The configuration file is managed by Dotgraft at `~/.config/ghostty/config`; its source file is `dot_config/ghostty/config.tmpl`.
+
+To apply changes:
 
 ```bash
-dotgraft apply         # 同步 Dotgraft 的独立 source 到家目录
-# 然后在 Ghostty 里按 Cmd + Shift + ,
+dotgraft apply         # Sync Dotgraft's separate source to the home directory
+# Then press Cmd + Shift + , in Ghostty
 ```
 
-## 先检查：macOS 覆盖文件
+## Check first: the macOS override file
 
-Ghostty 的配置加载顺序（1.3 的 `Config.zig:loadDefaultFiles`）：
-
-```
-默认值 → $XDG_CONFIG_HOME/ghostty/config → ~/Library/Application Support/com.mitchellh.ghostty/config → CLI 参数 → 递归 include
-```
-
-关键点：**Application Support 那份在 XDG 之后加载，逐键覆盖**。
-
-Ghostty 首次启动会在 `~/Library/Application Support/com.mitchellh.ghostty/config` 生成一个模板文件。只要它存在且写了某个键，你在 `~/.config/ghostty/config` 里写的同名键就被顶掉。
-
-实测（XDG 写 `theme = Dracula`，Application Support 留着旧的三行）：
+Ghostty's configuration load order (as of 1.3, `Config.zig:loadDefaultFiles`):
 
 ```
-font-size = 99          ← XDG 生效（App Support 没这个键）
-theme = GitHub Dark     ← XDG 被覆盖
-background = #0d1117    ← XDG 被覆盖
+Defaults → $XDG_CONFIG_HOME/ghostty/config → ~/Library/Application Support/com.mitchellh.ghostty/config → CLI arguments → recursive includes
 ```
 
-所以 `bootstrap.sh` 会检测这个文件，打印内容、备份到 `~/.config-backup/<时间戳>/`，征求同意后改名为 `config.before-dotgraft`；`dotgraft uninstall` 会把它恢复回去。手动处理：
+The key point: **the Application Support file loads after XDG and overrides it key by key**.
+
+On first launch, Ghostty generates a template file at `~/Library/Application Support/com.mitchellh.ghostty/config`. As long as it exists and sets a key, the same key in `~/.config/ghostty/config` is overridden.
+
+Measured example (XDG sets `theme = Dracula`, while Application Support still has three old lines):
+
+```
+font-size = 99          ← XDG wins (App Support has no such key)
+theme = GitHub Dark     ← Overridden by XDG
+background = #0d1117    ← Overridden by XDG
+```
+
+Therefore `bootstrap.sh` detects this file, prints its contents, backs it up to `~/.config-backup/<timestamp>/`, and—after asking for consent—renames it to `config.before-dotgraft`. `dotgraft uninstall` restores it. To handle it manually:
 
 ```bash
 mv "$HOME/Library/Application Support/com.mitchellh.ghostty/config" \
    "$HOME/Library/Application Support/com.mitchellh.ghostty/config.before-dotgraft"
 ```
 
-## 逐项说明
+## Settings in detail
 
-### 主题
+### Theme
 
 ```
 theme = {{ .theme }}
 ```
 
-Dotgraft 自带三套自定义主题，完整色板和对比度见 [Themes](themes.md)：
+Dotgraft ships three custom themes. For complete palettes and contrast ratios, see [Themes](themes.md):
 
-- `Dotgraft Ink`：深色，默认主题
-- `Dotgraft Paper`：浅色暖光
-- `Dotgraft Porcelain`：浅色冷光
+- `Dotgraft Ink`: dark, the default theme
+- `Dotgraft Paper`: warm light
+- `Dotgraft Porcelain`: cool light
 
-主题文件由 chezmoi 安装到：
+chezmoi installs the theme files to:
 
 ```text
 ~/.config/ghostty/themes/Dotgraft Ink
@@ -58,22 +60,22 @@ Dotgraft 自带三套自定义主题，完整色板和对比度见 [Themes](them
 ~/.config/ghostty/themes/Dotgraft Porcelain
 ```
 
-想跟随系统深浅色切换，写成一对：
+To follow the system's light/dark appearance, use a pair:
 
 ```text
 theme = dark:Dotgraft Ink,light:Dotgraft Paper
-# 或：theme = dark:Dotgraft Ink,light:Dotgraft Porcelain
+# Or: theme = dark:Dotgraft Ink,light:Dotgraft Porcelain
 ```
 
-内置主题仍可用 `ghostty +list-themes` 查看，加 `--preview` 可以预览配色。
+Built-in themes are still available through `ghostty +list-themes`; add `--preview` to preview their colors.
 
-**不要在配置里再写 `background`。** 主题已经定义了底色（Ink 是 `#121816`，Paper 是 `#F4F1E8`），手写 `background` 会把它顶掉，等于白换主题。
+**Do not write `background` in the configuration again.** The theme already defines the background color (Ink is `#121816`, Paper is `#F4F1E8`), and a manually written `background` would override it, effectively making the theme switch pointless.
 
-### Dotgraft 主题配色
+### Dotgraft theme colors
 
-三套主题都只设置颜色相关配置：
+All three themes set only color-related configuration:
 
-| 角色 | Dotgraft Ink | Dotgraft Paper | Dotgraft Porcelain |
+| Role | Dotgraft Ink | Dotgraft Paper | Dotgraft Porcelain |
 |---|---|---|---|
 | Background | `#121816` | `#F4F1E8` | `#F2F5F7` |
 | Foreground | `#D8E3DA` | `#26302B` | `#1E2A32` |
@@ -81,9 +83,9 @@ theme = dark:Dotgraft Ink,light:Dotgraft Paper
 | Selection background | `#345A4A` | `#8FBBA1` | `#9CC5B2` |
 | Selection foreground | `#F0F7F2` | `#1E3A2F` | `#17323D` |
 
-ANSI 16 色也分别配套设计。Ink 是深绿墨底 + 暖白前景 + 琥珀光标；Paper 是暖纸底 + 墨绿前景 + 铜色光标；Porcelain 是冷白底 + 蓝黑前景 + 蓝色光标。Starship 会自动切换到对应的 `dotgraft_ink` / `dotgraft_paper` / `dotgraft_porcelain` 调色板。
+The ANSI 16 colors are also designed as matching sets. Ink is a dark green ink ground with warm white foreground and an amber cursor; Paper is a warm paper ground with ink-green foreground and a copper cursor; Porcelain is a cool white ground with blue-black foreground and a blue cursor. Starship automatically switches to the matching `dotgraft_ink` / `dotgraft_paper` / `dotgraft_porcelain` palette.
 
-### 字体
+### Font
 
 ```
 font-family = "Maple Mono NF CN"
@@ -91,11 +93,11 @@ font-size = 13
 font-thicken = true
 ```
 
-- 必须是 **Nerd Font** 版本，否则图标、powerline 分隔符会缺字。
-- 这里用 **CN** 版：带中文字形，中文不会回退到系统其他字体。如果你装的是非 CN 版，族名要写 `"Maple Mono NF"`，少了 CN 就对不上。
-- `font-thicken` 是 macOS 专属，加一层描边，Retina 屏上更清晰。
+- It must be the **Nerd Font** version; otherwise icons and powerline separators will have missing glyphs.
+- This configuration uses the **CN** edition, which includes Chinese glyphs so Chinese text does not fall back to another system font. If you installed the non-CN edition, the family name must be `"Maple Mono NF"`; without CN it will not match.
+- `font-thicken` is macOS-specific. It adds an outline stroke and looks crisper on Retina displays.
 
-确认字体真的命中（这条比肉眼看更可靠）：
+Confirm that the font actually matches (this is more reliable than visual inspection):
 
 ```bash
 ghostty +show-face --string="a中"
@@ -103,9 +105,9 @@ ghostty +show-face --string="a中"
 # U+4E2D « 中 » found in face "Maple Mono NF CN".
 ```
 
-列所有可用字体族名：`ghostty +list-fonts`。
+List all available font family names: `ghostty +list-fonts`.
 
-### 窗口
+### Window
 
 ```
 window-padding-x = 12
@@ -114,85 +116,85 @@ window-padding-balance = true
 background-opacity = 0.92
 ```
 
-- `window-padding-*` 单位是点，会随屏幕 DPI 缩放。
-- 视口通常不能被字符尺寸整除，`window-padding-balance` 把这点余量均分到四边，画面更居中。
-- `background-opacity` 0.92 是「能透出壁纸但不干扰读代码」的档位，低于 0.85 开始影响观感。
+- `window-padding-*` is measured in points and scales with screen DPI.
+- The viewport usually cannot be divided evenly by character dimensions. `window-padding-balance` distributes the remaining space evenly across all four sides, making the view better centered.
+- `background-opacity` at 0.92 is the setting where the wallpaper shows through without interfering with reading code; below 0.85 it starts to hurt readability.
 
-### 毛玻璃
+### Glass
 
-选配决定一行。默认答案按系统版本决定：macOS 26+ 默认选原生，更旧的系统默认数字模糊。
+The option determines one line. The default answer depends on the system version: macOS 26+ defaults to native glass, and older systems default to numeric blur.
 
 ```
-# 选「原生」且 macOS ≥ 26：
+# "Native" selected and macOS ≥ 26:
 background-blur = macos-glass-regular
 
-# 否则：
+# Otherwise:
 background-blur = 20
 ```
 
-- 数字是模糊强度，只有 `background-opacity < 1` 时才有意义。20 比较稳，超过 30 可能出现渲染异常和掉帧。
-- macOS 26 起额外支持 `macos-glass-regular`（标准玻璃）和 `macos-glass-clear`（高透明玻璃），比数字模糊更贴合系统观感。`true` 等价于强度 20。
+- The number is blur strength and only matters when `background-opacity < 1`. 20 is reliable; above 30, rendering artifacts and dropped frames may appear.
+- Starting with macOS 26, `macos-glass-regular` (standard glass) and `macos-glass-clear` (highly transparent glass) are additionally supported and look more native than numeric blur. `true` is equivalent to strength 20.
 
-### 标题栏与窗口状态
+### Title bar and window state
 
 ```
 macos-titlebar-style = native
 window-save-state = always
 ```
 
-- `native`：标准 macOS 标题栏，tab 信息稳定可见，是默认选择。
-- `tabs`：自定义标题栏，把 tab bar 嵌进标题栏。部分 macOS/Ghostty 组合下可能出现 tab 标签不可见的问题；如果遇到，改回 `native` 或 `transparent`。
-- `transparent`：标准结构但标题栏透明；`hidden`：完全隐藏标题栏。
-- `window-save-state = always`：退出后保留窗口位置、尺寸、标签页、分屏布局。分屏还能回到原来的工作目录，这依赖下面的 shell 集成。
+- `native`: the standard macOS title bar, where tab information remains reliably visible. This is the default choice.
+- `tabs`: a custom title bar that embeds the tab bar into the title bar. Some macOS/Ghostty combinations may make tab labels invisible; if that happens, switch back to `native` or `transparent`.
+- `transparent`: standard structure with a transparent title bar; `hidden`: hide the title bar entirely.
+- `window-save-state = always`: preserve window position, size, tabs, and split layout after quitting. Splits can even return to their previous working directories, which depends on the shell integration below.
 
-### 光标
+### Cursor
 
 ```
 cursor-style = bar
 cursor-style-blink = true
 ```
 
-取值：`bar` / `block` / `underline` / `block_hollow`。
+Values: `bar` / `block` / `underline` / `block_hollow`.
 
-注意：开了 shell 集成后，它会在提示符处强制把光标改成竖线。想让这里的设置始终优先，加上：
+Note: with shell integration enabled, it forces the cursor to a bar at the prompt. To make the setting here always take precedence, add:
 
 ```
 shell-integration-features = no-cursor
 ```
 
-### 交互
+### Interaction
 
 ```
 mouse-hide-while-typing = true
 confirm-close-surface = false
 ```
 
-选中即复制在 macOS 上本来就是默认行为（`copy-on-select = true`），不需要显式写。
+Copy-on-select is already the default behavior on macOS (`copy-on-select = true`), so it does not need to be written explicitly.
 
-### Shell 集成
+### Shell integration
 
 ```
 shell-integration = zsh
 ```
 
-提供提示符跳转、工作目录传递、命令边界标记。上面 `window-save-state` 能恢复工作目录、以及 `Cmd+F` 的搜索定位，都依赖它。
+This provides prompt jumping, working directory propagation, and command boundary markers. `window-save-state` restoring working directories above, as well as `Cmd+F` search positioning, depend on it.
 
-它同时也是那个会动 `ZDOTDIR` 的东西——详见[配置架构](configuration.md#为什么不用-zdotdir)。
+It is also the thing that manipulates `ZDOTDIR`—see [Configuration architecture](configuration.md#why-not-zdotdir).
 
-## 可选增强
+## Optional enhancements
 
-这些默认关着，需要时取消注释：
+These are disabled by default; uncomment them when needed:
 
-| 配置 | 作用 |
+| Configuration | Effect |
 |---|---|
-| `minimum-contrast = 1.1` | 前景和背景过于接近时自动拉开对比，避免「看不见的文字」。1 = 不干预 |
-| `notify-on-command-finish = unfocused` | 命令跑完且窗口不在前台时发系统通知，配长任务有用 |
-| `background-blur = macos-glass-regular` | 系统原生玻璃（macOS 26+） |
-| `keybind = global:cmd+shift+space=toggle_quick_terminal` | 快速终端热键 |
+| `minimum-contrast = 1.1` | Automatically increases contrast when foreground and background are too close, avoiding "invisible text". 1 means no intervention |
+| `notify-on-command-finish = unfocused` | Sends a system notification when a command finishes and the window is not focused; useful for long tasks |
+| `background-blur = macos-glass-regular` | Native system glass (macOS 26+) |
+| `keybind = global:cmd+shift+space=toggle_quick_terminal` | Quick terminal hotkey |
 
-### 快速终端
+### Quick terminal
 
-从屏幕边缘呼出一块临时终端，类似 Guake / iTerm2 的 hotkey window。默认不绑定快捷键。
+Summons a temporary terminal from the edge of the screen, similar to Guake / iTerm2's hotkey window. No shortcut is bound by default.
 
 ```
 keybind = global:cmd+shift+space=toggle_quick_terminal
@@ -200,63 +202,63 @@ quick-terminal-position = top        # top / bottom / left / right / center
 quick-terminal-screen = mouse        # main / mouse / macos-menu-bar
 ```
 
-**语法坑**：触发器里不能有空格，等号是紧贴的。下面这样写会报 `InvalidAction`：
+**Syntax pitfall**: the trigger cannot contain spaces, and the equals sign must be adjacent. The following produces `InvalidAction`:
 
 ```
 keybind = global:cmd+shift+space = toggle_quick_terminal    ✗
 keybind = global:cmd+shift+space=toggle_quick_terminal      ✓
 ```
 
-另外 `` ` `` 只能写成 `` cmd+` ``，写 `cmd+grave` 是无效的。
+Also, `` ` `` can only be written as `` cmd+` ``; `cmd+grave` is invalid.
 
-## 快捷键
+## Shortcuts
 
-Ghostty 1.3.1 的默认绑定，用 `ghostty +list-keybinds` 核对：
+Default bindings in Ghostty 1.3.1; verify with `ghostty +list-keybinds`:
 
-| 快捷键 | 动作 |
+| Shortcut | Action |
 |---|---|
-| `Cmd+T` | 新建标签页 |
-| `Cmd+D` / `Cmd+Shift+D` | 右侧分屏 / 下方分屏 |
-| `Cmd+[` / `Cmd+]` | 焦点切到上一个 / 下一个分屏 |
-| `Cmd+Alt+方向键` | 焦点朝对应方向移动 |
-| `Cmd+Shift+Enter` | 当前分屏最大化（切换） |
-| `Cmd+W` | 关闭当前分屏 |
-| `Cmd+Alt+W` | 关闭标签页 |
-| `Cmd+=` / `Cmd+-` / `Cmd+0` | 字号放大 / 缩小 / 复位（临时，不改配置） |
-| `Cmd+,` | 打开配置文件 |
-| `Cmd+Shift+,` | 重新加载配置 |
-| `Cmd+F` / `Cmd+E` | 搜索 / 搜索选中内容 |
-| `Cmd+Shift+P` | 命令面板 |
+| `Cmd+T` | New tab |
+| `Cmd+D` / `Cmd+Shift+D` | Split right / split down |
+| `Cmd+[` / `Cmd+]` | Move focus to previous / next split |
+| `Cmd+Alt+Arrow` | Move focus in the corresponding direction |
+| `Cmd+Shift+Enter` | Toggle maximize for the current split |
+| `Cmd+W` | Close the current split |
+| `Cmd+Alt+W` | Close the tab |
+| `Cmd+=` / `Cmd+-` / `Cmd+0` | Increase / decrease / reset font size (temporary, does not change configuration) |
+| `Cmd+,` | Open the configuration file |
+| `Cmd+Shift+,` | Reload configuration |
+| `Cmd+F` / `Cmd+E` | Search / search selected text |
+| `Cmd+Shift+P` | Command palette |
 
-改任何一条都写 `keybind = trigger=action`。
+To change any binding, write `keybind = trigger=action`.
 
-## 验证与调试
+## Validation and debugging
 
-Ghostty 自带一套面向配置的 CLI 动作，`ghostty +help` 可以看到全部：
+Ghostty ships a set of configuration-oriented CLI actions; see all of them with `ghostty +help`:
 
-| 命令 | 用途 |
+| Command | Purpose |
 |---|---|
-| `+validate-config` | 校验配置文件是否合法（当前这个模板要**先渲染**） |
-| `+show-config` | 打印当前生效的配置（合并了所有来源） |
-| `+show-config --default --docs` | 打印全部 600+ 选项和文档 |
-| `+show-face --string="a中"` | 查某个字符实际命中哪个字体 |
-| `+list-themes` / `+list-fonts` / `+list-keybinds` / `+list-colors` / `+list-actions` | 枚举 |
-| `+edit-config` | 用 `$EDITOR` 打开配置文件 |
+| `+validate-config` | Validate whether a configuration file is legal (the current template must be **rendered first**) |
+| `+show-config` | Print the currently effective configuration (merged from all sources) |
+| `+show-config --default --docs` | Print all 600+ options and their documentation |
+| `+show-face --string="a中"` | Find which font actually provides a given character |
+| `+list-themes` / `+list-fonts` / `+list-keybinds` / `+list-colors` / `+list-actions` | Enumerate |
+| `+edit-config` | Open the configuration file with `$EDITOR` |
 
-校验 Dotgraft 的模板要先渲染：
+To validate Dotgraft's template, render it first:
 
 ```bash
 ghostty +validate-config --config-file=<(chezmoi execute-template < dot_config/ghostty/config.tmpl)
 ```
 
-直接拿 `config.tmpl` 去校验会报 `unknown field`，因为它是 Go 模板，不是配置。
+Validating `config.tmpl` directly reports `unknown field`, because it is a Go template, not configuration.
 
-想确认某个键到底生效了没有：
+To confirm whether a key is actually in effect:
 
 ```bash
 ghostty +show-config | grep '^theme'
 ```
 
-## 版本差异
+## Version differences
 
-配置键会随 Ghostty 版本变化。某个键在新版里改名或删除时，Ghostty 启动会提示。当前配置在 **1.3.1** 上通过 `+validate-config`。用其他版本时如果报错，带上 `ghostty +version` 的输出开 issue。
+Configuration keys change across Ghostty versions. When a key is renamed or removed in a newer version, Ghostty warns at startup. The current configuration passes `+validate-config` on **1.3.1**. If you use another version and encounter errors, open an issue with the output of `ghostty +version`.
