@@ -1,11 +1,11 @@
 {{- if has "eza" .tools }}
 # ------------------------------------------------------------------------------
-# eza —— 替代 ls
+# eza - replace ls
 # ------------------------------------------------------------------------------
-# --icons                    用 Nerd Font 图标标出文件类型
-# --group-directories-first  文件夹排在文件前面
-# --sort=name                按名称排序，而不是按修改时间
-# --tree --level=2           树形展开两层，快速看清项目布局
+# --icons                    mark file types with Nerd Font icons
+# --group-directories-first  list directories before files
+# --sort=name                sort by name instead of modification time
+# --tree --level=2           show two tree levels to inspect project layout quickly
 if (( $+commands[eza] )); then
   alias ls="eza --icons --group-directories-first"
   alias ll="eza -l --icons --sort=name"
@@ -15,13 +15,13 @@ fi
 {{- if has "bat" .tools }}
 
 # ------------------------------------------------------------------------------
-# bat —— 替代 cat
+# bat - replace cat
 # ------------------------------------------------------------------------------
-# --paging=never  禁用分页，行为和 cat 一致，不会卡在 less 里
-# --style=plain   去掉行号和网格装饰，只保留语法高亮
+# --paging=never  disable paging to match cat and avoid trapping output in less
+# --style=plain   drop line numbers and grid decoration, keep syntax highlighting
 #
-# 注意：这会让 `cat` 走 bat。脚本里要读原始内容请用 `command cat`
-# （50-functions.zsh 里的 y 函数就是这么做的）。
+# Note: this sends `cat` through bat. Use `command cat` in scripts that need raw content
+# (the y function in 50-functions.zsh does exactly this).
 if (( $+commands[bat] )); then
   alias cat="bat --paging=never --style=plain"
 fi

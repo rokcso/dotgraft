@@ -1,21 +1,21 @@
 # ==============================================================================
-# Dotgraft — Starship 提示符
+# Dotgraft - Starship prompt
 # ==============================================================================
-# 来源：Starship 官方预设 catppuccin-powerline（v1.27.0）
-#   上游原始文件：
+# Source: official Starship preset catppuccin-powerline (v1.27.0)
+#   Upstream original:
 #   https://github.com/starship/starship/blob/v1.27.0/docs/public/presets/toml/catppuccin-powerline.toml
 #
-# 相对上游只改了一处：
+# Only one change from upstream:
 #   [line_break] disabled = true  ->  false
-#   让彩虹条独占第一行，输入符号落到第二行，输入时永远有整行可用。
+#   Let the rainbow bar own the first line and put the input symbol on the second.
 #
-# 要重新同步上游版本：
+# To resync the upstream version:
 #   starship preset catppuccin-powerline -o ~/.config/starship.toml
-#   然后手工把上面那一处改回来（并更新本注释里的版本号）。
-#   不要逐行手改——预设内部有大量隐式依赖，整份替换更安全。
+#   Then manually reapply the change above and update the version in this comment.
+#   Do not hand-edit line by line; presets have many implicit dependencies, so replace wholesale.
 #
-# 配色梯度：red -> peach -> yellow -> green -> sapphire -> lavender
-# 换调色板：改下面 palette 的值为 catppuccin_mocha / catppuccin_frappe /
+# Color gradient: red -> peach -> yellow -> green -> sapphire -> lavender
+# Change palettes by setting palette below to catppuccin_mocha / catppuccin_frappe /
 #           catppuccin_macchiato / catppuccin_latte
 # ==============================================================================
 

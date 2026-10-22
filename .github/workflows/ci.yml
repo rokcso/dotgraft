@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   # ============================================================================
-  # 静态检查：shell 和 zsh 的语法与风格
+  # Static checks: shell and zsh syntax and style
   # ============================================================================
   lint:
     name: Lint shell and zsh
@@ -34,9 +34,9 @@ jobs:
             dot_local/bin/executable_dotgraft \
             tests/smoke.sh
 
-      # 格式标准和本地保持一致：2 空格缩进、case 内缩进、简化写法。
-      # 用 go install 取 shfmt，是因为 Ubuntu 源里没有这个包。
-      # 固定版本，避免 @latest 改变默认格式规则后 CI 突然变红。
+      # Match local formatting: 2-space indent, indented case bodies, simplified syntax.
+      # Use go install for shfmt because Ubuntu repositories do not package it.
+      # Pin the version so @latest cannot change formatting rules and break CI.
       - name: shfmt
         run: |
           go install mvdan.cc/sh/v3/cmd/shfmt@v3.14.1
@@ -55,15 +55,15 @@ jobs:
             zsh -n "$f"
           done
           echo "zsh 语法检查通过"
-        # 这里故意逐个检查而不是用 glob 一次传入，
-        # 这样报错时能直接看到是哪个文件。
+        # Check each file deliberately instead of passing one glob,
+        # so failures point directly at the offending file.
 
   # ============================================================================
-  # 渲染检查：真正跑一遍安装流程，验证模板、选配和 Ghostty 配置
+  # Render check: run the real installation flow to validate templates, choices, and Ghostty config
   # ============================================================================
-  # 这一项才是关键。它跑的是用户安装时会走的同一条路径：
-  #   chezmoi init（回答选配问题）→ apply → 断言落盘结果
-  # 模板写错、选配项写错、忽略清单漏了目录，都会在这里暴露。
+  # This is the critical job: it follows the same path users take during installation:
+  #   chezmoi init (answer choices) -> apply -> assert the written result
+  # Template mistakes, wrong choices, and missing ignore entries all surface here.
   render:
     name: Render templates and validate (${{ matrix.os }})
     strategy:
@@ -77,10 +77,10 @@ jobs:
       - name: Install chezmoi and bats
         run: brew install chezmoi bats-core
 
-      # cask 装的是 .app，不保证在 PATH 里建符号链接，
-      # tests/smoke.sh 会自己去 /Applications 找二进制。
-      # 这一项必须成功：否则主题名和 Ghostty 配置校验会被跳过，
-      # CI 会在“看起来绿了”的情况下失去最关键的验证。
+      # The cask installs an .app and does not guarantee a PATH symlink,
+      # tests/smoke.sh finds the binary under /Applications itself.
+      # This step must succeed; otherwise theme names and Ghostty config checks are skipped,
+      # CI would look green while silently losing its most important validation.
       - name: Install Ghostty
         run: brew install --cask ghostty
 

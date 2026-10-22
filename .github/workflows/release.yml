@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  # 发布前在 macOS 上跑和 CI 相同的测试。
-  # 只有这里通过，release job 才会打包并创建 GitHub Release。
+  # Run the same tests as CI on macOS before publishing.
+  # The release job packages and creates a GitHub Release only after this passes.
   validate:
     name: Validate release (${{ matrix.os }})
     strategy:
@@ -24,8 +24,8 @@ jobs:
       - name: Install chezmoi and bats
         run: brew install chezmoi bats-core
 
-      # cask 装的是 .app，不保证在 PATH 里建符号链接，
-      # doctor 和 smoke 会自己去 /Applications 找二进制。
+      # The cask installs an .app and does not guarantee a PATH symlink,
+      # doctor and smoke find the binary under /Applications themselves.
       - name: Install Ghostty
         run: brew install --cask ghostty
 

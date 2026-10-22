@@ -1,31 +1,31 @@
 # ==============================================================================
-# Dotgraft —— 基础依赖清单（始终安装）
+# Dotgraft - base dependency manifest (always installed)
 # ==============================================================================
-# 安装：brew bundle --file=Brewfile
-# 通常不需要手动跑，chezmoi apply 会通过 run_onchange_install-packages.sh 调用。
+# Install: brew bundle --file=Brewfile
+# Usually run automatically by chezmoi apply via run_onchange_install-packages.sh.
 #
-# 这里只放「没有它配置就跑不起来」的东西。
+# Only include things the configuration cannot run without.
 #
-# 可选组件不在这里，而是安装时勾选（dotgraft reconfigure 可改）：
+# Optional components are selected at install time instead (change with dotgraft reconfigure):
 #   fzf / zoxide / eza / bat / yazi
 #
-# 字体也不在这里。原因是字体 cask 会去「采纳」已存在的同名 ttf，
-# 而手动装过字体的人几乎都会撞上 "existing Font is different" 报错。
-# 字体改由 run_onchange_install-packages.sh 检测：没装才装。
+# Fonts are not here either: the font cask tries to "adopt" an existing ttf,
+# and anyone who installed the font manually will likely hit "existing Font is different".
+# Instead run_onchange_install-packages.sh detects the font and installs only when missing.
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 终端本体
+# Terminal
 # ------------------------------------------------------------------------------
 cask "ghostty"
 
 # ------------------------------------------------------------------------------
-# 提示符
+# Prompt
 # ------------------------------------------------------------------------------
 brew "starship"
 
 # ------------------------------------------------------------------------------
-# zsh 插件
+# zsh plugins
 # ------------------------------------------------------------------------------
 brew "zsh-autosuggestions"
 brew "zsh-syntax-highlighting"

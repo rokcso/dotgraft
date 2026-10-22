@@ -1,21 +1,21 @@
 # ==============================================================================
-# 插件 —— zsh-autosuggestions
+# Plugin - zsh-autosuggestions
 # ==============================================================================
-# 根据历史记录，在你还没打完的时候于光标后用灰色显示一条建议。
-# 按 → 或 Ctrl+F 接受整条命令。
+# Show a gray suggestion after the cursor based on history before you finish typing.
+# Accept the whole command with the right arrow or Ctrl+F.
 #
-# 加载位置很关键：排在 30-prompt（Starship）之后。
-# autosuggestions 要 hook 提示符设置好的 PRE_CMD，先有 PROMPT 才有它挂载的地方。
+# Load order matters: this runs after 30-prompt (Starship).
+# autosuggestions hooks PRE_CMD set by the prompt; PROMPT must exist first.
 #
-# 安装：brew install zsh-autosuggestions
+# Install: brew install zsh-autosuggestions
 # ==============================================================================
 
 if [[ -n "$_dotgraft_brew_prefix" ]] &&
    [[ -r "$_dotgraft_brew_prefix/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
   source "$_dotgraft_brew_prefix/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 
-  # Ctrl+F 接受建议。
-  # 默认是 → 键，但 → 在行中会被 forward-char 抢走，用起来很别扭；
-  # Ctrl+F 原本也是 forward-char，覆盖它代价最小，且手感更顺。
+  # Accept suggestions with Ctrl+F.
+  # The default is the right arrow, but forward-char steals it mid-line, which is awkward;
+  # Ctrl+F was also forward-char; overriding it costs the least and feels smoother.
   bindkey '^F' autosuggest-accept
 fi

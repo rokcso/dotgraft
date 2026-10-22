@@ -1,5 +1,5 @@
-# 所有 bats 测试共用的初始化。
-# 只 source 不是执行：executable_dotgraft 底部有 BASH_SOURCE 守卫。
+# Shared initialization for all bats tests.
+# Source only, do not execute: executable_dotgraft has a BASH_SOURCE guard.
 
 setup() {
   ORIG_HOME="$HOME"

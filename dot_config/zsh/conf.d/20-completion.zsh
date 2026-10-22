@@ -1,10 +1,10 @@
 # ==============================================================================
-# Tab 补全
+# Tab completion
 # ==============================================================================
-# zsh-completions 提供大量命令的参数补全（brew install zsh-completions）。
-# Homebrew 安装的工具（gh、chezmoi、kubectl 等）还会把补全放到
-# share/zsh/site-functions。两个目录都存在时都加入 fpath。
-# typeset -U 避免重复 source 时堆积重复路径。
+# zsh-completions provides argument completion for many commands (brew install zsh-completions).
+# Homebrew tools (gh, chezmoi, kubectl, etc.) also put completions in
+# share/zsh/site-functions. Add both to fpath when they exist.
+# typeset -U prevents duplicate paths when sourced repeatedly.
 typeset -U fpath
 for _dotgraft_more_fpath in \
   "$_dotgraft_brew_prefix/share/zsh-completions" \
@@ -15,20 +15,20 @@ for _dotgraft_more_fpath in \
 done
 unset _dotgraft_more_fpath
 
-# compinit 必须在 fpath 改完之后跑，否则新加的目录不会被扫描。
+# compinit must run after fpath changes, or new directories are not scanned.
 #
-# 这里会再跑一次 compinit 是故意的：~/.zshrc 里可能有别的工具（例如 OpenSpec）
-# 在本区块之前就已经调用过 compinit，而它们不知道我们后面又加了 fpath。
-# 重复调用的代价是几十毫秒，换来的是 zsh-completions 真的生效。
+# Running compinit again here is intentional: other tools in ~/.zshrc (such as OpenSpec)
+# may have called compinit before this block and do not know we add fpath later.
+# The duplicate call costs tens of milliseconds and makes zsh-completions effective.
 #
-# -u：Homebrew 的目录大多是 root 所有，zsh 默认会拒绝使用这种"不安全"目录，
-#     这个参数让 compinit 照常接受。
+# -u: Homebrew directories are mostly root-owned, and zsh rejects such "insecure" dirs,
+#     This flag makes compinit accept them anyway.
 autoload -Uz compinit && compinit -u
 
-# Tab 补全时显示可选菜单，连续按 Tab 可以用方向键在候选里移动
+# Show a selection menu; press Tab repeatedly and move through candidates with arrows
 zstyle ':completion:*' menu select
-# 补全大小写不敏感：输入 `cd down` 也能补出 `Downloads`
+# Case-insensitive completion: `cd down` also completes `Downloads`
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 
-# 补全完成后把光标移到词尾；允许在单词中间开始补全。
+# Move the cursor to the end after completion; allow completion mid-word.
 setopt ALWAYS_TO_END COMPLETE_IN_WORD

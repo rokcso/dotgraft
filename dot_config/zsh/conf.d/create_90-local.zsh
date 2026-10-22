@@ -1,14 +1,14 @@
 # ==============================================================================
-# 只属于这台机器的配置
+# Configuration for this machine only
 # ==============================================================================
-# 这个文件由 chezmoi 用 create_ 属性管理：只在不存在时创建一次，
-# 之后 `chezmoi apply` 永远不会覆盖它。所以你在这里写的东西不会丢。
+# chezmoi manages this file with create_: it is created once when missing,
+# after that `chezmoi apply` never overwrites it, so what you write here is safe.
 #
-# 适合放：
-#   - 只在某台机器上存在的路径（比如公司内网的工具链）
-#   - 环境变量、别名、函数
-#   - 别的安装器让你"追加到 ~/.zshrc"的那些行（也可以留在这里集中管理）
+# Good for:
+#   - Paths that exist only on this machine (such as an internal toolchain)
+#   - Environment variables, aliases, and functions
+#   - Lines other installers ask you to append to ~/.zshrc (or manage them here)
 #
-# 不适合放：
-#   - 涉及密钥的内容。这个文件不进 git，但也不要用它存 token。
+# Not for:
+#   - Secrets. This file is not tracked by git, but do not use it for tokens either.
 # ==============================================================================

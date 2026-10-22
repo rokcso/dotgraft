@@ -1,16 +1,16 @@
 {{- if has "fzf" .tools }}
 # ------------------------------------------------------------------------------
-# fzf —— 模糊搜索
+# fzf - fuzzy search
 # ------------------------------------------------------------------------------
-# 注册两个快捷键：
-#   Ctrl+R  模糊搜索历史命令
-#   Ctrl+T  模糊搜索当前目录下的文件
-# 另外支持 `**<Tab>` 补全，例如：
-#   cd **<Tab>    弹出 fzf 让你选子目录
-#   kill **<Tab>  列出所有进程让你选
+# Register two keybindings:
+#   Ctrl+R  fuzzy-search command history
+#   Ctrl+T  fuzzy-search files in the current directory
+# It also supports `**<Tab>` completion, for example:
+#   cd **<Tab>    open fzf to choose a subdirectory
+#   kill **<Tab>  list all processes to choose from
 #
-# 注意：--zsh 是 fzf 0.48 之后的新接口，老版本会直接报错，
-# 所以先取一次输出，拿得到才 eval，避免在不支持时把 shell 搞脏。
+# Note: --zsh is new in fzf 0.48; older versions error outright,
+# so capture output first and eval only when non-empty, avoiding a dirty shell.
 if (( $+commands[fzf] )); then
   _dotgraft_fzf_init="$(fzf --zsh 2>/dev/null)"
   if [[ -n "$_dotgraft_fzf_init" ]]; then
@@ -22,16 +22,16 @@ fi
 {{- if has "zoxide" .tools }}
 
 # ------------------------------------------------------------------------------
-# zoxide —— 智能目录跳转
+# zoxide - smart directory jumping
 # ------------------------------------------------------------------------------
-# 后台记录你 cd 过的目录，按访问频率和时间排序。
-#   z foo        跳到路径里含 foo 的、最常去的目录
-#   z foo bar    同时匹配 foo 和 bar
-#   zi foo       交互模式，配合 fzf 从多个匹配里挑
+# Tracks directories you cd into, ranked by visit frequency and recency.
+#   z foo        jump to the most frequent directory containing foo
+#   z foo bar    match both foo and bar
+#   zi foo       interactive mode: pick from matches with fzf
 #
-# ⚠️ 不要写 alias cd="z"。
-# zoxide 是靠 hook cd 来记录访问的，一旦把 cd 换成 z，它就记不到新目录，
-# 数据会停止更新。直接用 z 就好，习惯形成得很快。
+# WARNING: Do not write alias cd="z".
+# zoxide tracks visits by hooking cd; aliasing cd to z stops it recording new directories,
+# data stops updating. Use z directly; the habit forms quickly.
 if (( $+commands[zoxide] )); then
   eval "$(zoxide init zsh)"
 fi

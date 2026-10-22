@@ -1,111 +1,111 @@
 # ==============================================================================
-# Dotgraft — Ghostty
+# Dotgraft - Ghostty
 # ==============================================================================
-# 这个文件由 chezmoi 管理。改这里，然后：
-#   dotgraft diff        # 先看会改什么
-#   chezmoi apply        # 同步到家目录
-#   Cmd + Shift + ,      # 让 Ghostty 重新加载配置
+# This file is managed by chezmoi. Edit it here, then:
+#   dotgraft diff        # preview what would change
+#   chezmoi apply        # sync to the home directory
+#   Cmd + Shift + ,      # reload Ghostty configuration
 #
-# 主题和毛玻璃来自安装时的选配（dotgraft reconfigure 可改）
+# Theme and glass come from installation choices (change with dotgraft reconfigure)
 #
-# 全部可用选项：ghostty +show-config --default --docs
-# 全部内置主题：ghostty +list-themes --preview
-# 全部可用动作：ghostty +list-actions
+# All available options: ghostty +show-config --default --docs
+# All built-in themes: ghostty +list-themes --preview
+# All available actions: ghostty +list-actions
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 主题与配色
+# Theme and colors
 # ------------------------------------------------------------------------------
-# Catppuccin Mocha：深色、低饱和、长时间盯着不刺眼。
-# 想跟随系统深浅色自动切换，把下面这行换成：
+# Catppuccin Mocha: dark, low saturation, comfortable for long sessions.
+# To follow the system light/dark mode, replace the line below with:
 #   theme = dark:Dotgraft Ink,light:Dotgraft Paper
 #
-# 注意：不要在下面再写 background，主题已经定义了底色。
-# 一旦手写 background，主题的配色就被顶掉了，等于白换。
+# Note: do not set background below; the theme already defines the ground color.
+# A hand-written background overrides the theme palette, wasting the switch.
 theme = {{ .theme }}
 
 # ------------------------------------------------------------------------------
-# 字体
+# Fonts
 # ------------------------------------------------------------------------------
-# 必须是 Nerd Font 版本，否则图标、powerline 分隔符会缺字。
-# 这里用 CN 版：带中文字形，中文不会回退到别的字体。
-# 如果你装的是非 CN 版，族名写 "Maple Mono NF"（少了 CN）。
-# 用 ghostty +show-face --string="a中" 可以确认字体真的命中。
+# Must be a Nerd Font variant, or icons and powerline separators will be missing.
+# Use the CN variant: it includes Chinese glyphs, so Chinese does not fall back.
+# If you installed the non-CN variant, use the family name "Maple Mono NF".
+# Use ghostty +show-face with a mixed Chinese/ASCII string to confirm the font matches.
 font-family = "Maple Mono NF CN"
 font-size = 13
 
-# macOS 专属：加一层描边，Retina 屏上更清晰锐利。
+# macOS only: add a stroke for sharper text on Retina displays.
 font-thicken = true
 
-# 可选项：行距。百分比是"在原值基础上增加多少"，不是设成多少。
+# Optional: line spacing. The percentage is added to the base value, not a target.
 #adjust-cell-height = 10%
 
 # ------------------------------------------------------------------------------
-# 窗口：半透明毛玻璃
+# Window: translucent glass
 # ------------------------------------------------------------------------------
-# 内容到窗口边缘的留白，单位是点，会随屏幕 DPI 缩放。
+# Padding from content to window edge in points, scaled by screen DPI.
 window-padding-x = 12
 window-padding-y = 8
-# 视口通常不能被字符尺寸整除，开启后把这点余量均分到四边，画面更居中。
+# Viewports rarely divide evenly by cell size; split the remainder across all sides.
 window-padding-balance = true
 
-# 半透明。0.92 是"能透出壁纸但不干扰读代码"的档位。
+# Opacity. 0.92 shows the wallpaper without interfering with reading code.
 background-opacity = 0.92
 {{ if .glass -}}
-# macOS 26 及以上的系统原生玻璃效果，比数字模糊更贴合系统观感。
+# Native macOS 26+ glass, which fits the system better than numeric blur.
 background-blur = macos-glass-regular
 {{- else -}}
-# 数字模糊强度。只有 background-opacity 小于 1 时才有效果。
-# 数字越大越糊，20 比较稳；超过 30 可能渲染异常。
+# Numeric blur strength. It only applies when background-opacity is below 1.
+# Higher values blur more; 20 is safe, while values above 30 may render badly.
 background-blur = 20
 {{- end }}
 
-# native：标准 macOS 标题栏，tab 信息稳定可见。
-# tabs 是自定义标题栏，在某些 macOS/Ghostty 组合下会把 tab 信息藏掉；
-# 想更无缝可改 transparent，想完全隐藏标题栏可改 hidden。
+# native: the standard macOS title bar keeps tab information visible.
+# tabs is a custom title bar that can hide tab information on some macOS/Ghostty combos;
+# Use transparent for a more seamless look, or hidden to hide the title bar entirely.
 macos-titlebar-style = native
 
-# 退出后保留窗口状态：位置、尺寸、标签页、分屏布局，下次启动自动恢复。
+# Preserve window state on exit: position, size, tabs, and splits restore next launch.
 window-save-state = always
 
 # ------------------------------------------------------------------------------
-# 光标
+# Cursor
 # ------------------------------------------------------------------------------
-# bar 细竖线 | block 方块 | underline 下划线 | block_hollow 空心方块
+# bar | block | underline | block_hollow
 cursor-style = bar
 cursor-style-blink = true
 
-# 注意：开启 shell 集成后，它会在提示符处强制把光标改回竖线。
-# 想让这里的设置始终优先，再加：
+# Note: shell integration forces the cursor back to a bar at the prompt.
+# To keep this setting authoritative, also add:
 #   shell-integration-features = no-cursor
 
 # ------------------------------------------------------------------------------
-# 交互
+# Interaction
 # ------------------------------------------------------------------------------
 mouse-hide-while-typing = true
 confirm-close-surface = false
 
-# 选中即复制在 macOS 上本来就是默认行为（copy-on-select = true）。
+# Copy-on-select is already the macOS default (copy-on-select = true).
 
 # ------------------------------------------------------------------------------
-# Shell 集成
+# Shell integration
 # ------------------------------------------------------------------------------
-# 提供提示符跳转、工作目录传递、命令边界标记等能力。
-# 分屏/标签页恢复时能回到原来的目录，也依赖它。
+# Provides prompt navigation, working-directory tracking, command boundaries, and more.
+# Restoring splits/tabs to their previous directories also depends on it.
 shell-integration = zsh
 
 # ==============================================================================
-# 以下都是默认关闭的可选增强，需要时取消注释
+# Optional enhancements below are off by default; uncomment when needed
 # ==============================================================================
 
-# 当前景色和背景色过于接近时自动拉开对比，避免"看不见的文字"。
+# Automatically increase contrast when foreground and background are too close.
 #minimum-contrast = 1.1
 
-# 命令跑完且窗口不在前台时，发一条系统通知。
+# Send a system notification when a command finishes while the window is unfocused.
 #notify-on-command-finish = unfocused
 
-# 快速终端：从屏幕边缘呼出一块临时终端，类似 Guake / iTerm2 的 hotkey window。
-# 注意触发器里不能有空格，等号是紧贴的：trigger=action
+# Quick terminal: a temporary terminal from the screen edge, like Guake / iTerm2 hotkeys.
+# Triggers cannot contain spaces; the equals sign is attached: trigger=action
 #keybind = global:cmd+shift+space=toggle_quick_terminal
 #quick-terminal-position = top
 #quick-terminal-screen = mouse

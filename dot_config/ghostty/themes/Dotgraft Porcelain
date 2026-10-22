@@ -1,6 +1,6 @@
-# Dotgraft Porcelain — 浅色冷光主题
-# 角色规则：Graft/Alert/Signal 固定；Ground/Ink/Dot 表达温度；Selection 使用 Graft tint。
-# 只设置颜色相关配置；不要在主题文件里设置 theme/config-file/keybind。
+# Dotgraft Porcelain - cool light theme
+# Role rules: Graft/Alert/Signal fixed; Ground/Ink/Dot express temperature; Selection uses a Graft tint.
+# Set only color-related options; do not set theme/config-file/keybind in theme files.
 palette = 0=#1E2A32
 palette = 1=#B23A48
 palette = 2=#2C784B

@@ -1,20 +1,20 @@
 # ==============================================================================
-# 历史记录
+# History
 # ==============================================================================
-# 显式写 HISTFILE，是为了即使将来 ZDOTDIR 有变化，历史也不会换地方。
-# /etc/zshrc 里默认是 ${ZDOTDIR:-$HOME}/.zsh_history，也就是同一个路径。
+# Set HISTFILE explicitly so history stays put even if ZDOTDIR changes later.
+# The /etc/zshrc default is ${ZDOTDIR:-$HOME}/.zsh_history, the same path.
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=50000
 SAVEHIST=50000
 
-# 记录每条命令的开始时间，`history -i` 可以按时间查看
+# Record each command start time so `history -i` can show timestamps
 setopt EXTENDED_HISTORY
-# 多个终端共享历史，并且立即写盘，避免两个窗口互相覆盖
+# Share history across terminals and write immediately so windows do not overwrite each other
 setopt SHARE_HISTORY
-# 重复命令只保留最新一条
+# Keep only the newest copy of repeated commands
 setopt HIST_IGNORE_ALL_DUPS
-# 命令前加一个空格就不写进历史，用来处理临时粘贴的敏感内容
+# Prefixing a command with a space keeps it out of history, useful for pasted secrets
 setopt HIST_IGNORE_SPACE
 
-# 可选：历史展开（!!、!$）先回显再执行。更安全，但会让 !! 多按一次回车。
+# Optional: echo history expansion (!!, !$) before running it. Safer but adds a keypress.
 # setopt HIST_VERIFY

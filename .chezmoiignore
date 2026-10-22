@@ -1,10 +1,10 @@
-# chezmoi 会把源目录里的一切映射到 $HOME。
-# 下面这些是仓库自身的文件，不是 dotfiles，必须排除。
+# chezmoi maps everything in the source directory into $HOME.
+# The entries below are repository files, not dotfiles, and must be excluded.
 #
-# chezmoi 的 ignore 模式按目标路径匹配，不带路径分隔符的模式只命中
-# 目标根部的条目；例如 docs/ 不会误伤 ~/.config/foo/docs/。
-# 新增顶层目录时记得同步这里；tests/smoke.sh 会检查
-# `chezmoi managed` 里没有出现白名单之外的路径。
+# chezmoi ignore patterns match target paths; patterns without a separator match
+# target-root entries only; docs/ does not affect ~/.config/foo/docs/.
+# Keep this in sync when adding top-level directories; tests/smoke.sh checks
+# that `chezmoi managed` shows no paths outside the allowlist.
 README.md
 README.zh-CN.md
 LICENSE
@@ -18,8 +18,8 @@ scripts/
 .github/
 .dotgraft-source
 
-# 参考资料（如果以后在本地 clone 同类项目，放这里就不会被部署）
+# Reference material: local clones of similar projects here are never deployed
 refs/
 
-# 本地安装基线/笔记，不部署
+# Local installation baseline/notes, not deployed
 PRE-INSTALL-STATE.md
