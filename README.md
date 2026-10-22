@@ -2,7 +2,7 @@
 
 Dotgraft 是一套由 [chezmoi](https://www.chezmoi.io) 管理的 macOS 终端配置：**Ghostty + Starship + zsh**。配置是版本化的文件，安装前可以预览，更新时可以查看差异，卸载前会先备份。
 
-Created by rokcso · 源码与反馈：<https://github.com/rokcso/dotgraft>
+![Dotgraft 在 Ghostty 中的效果预览](docs/images/dotgraft-preview.webp)
 
 ## 快速开始
 
