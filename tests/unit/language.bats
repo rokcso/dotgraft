@@ -3,7 +3,16 @@
 setup() {
   source "$BATS_TEST_DIRNAME/../../scripts/lib/language.sh"
   unset DOTGRAFT_LANG LC_ALL LC_MESSAGES LANG
+  # Isolate the saved preference so a developer's own file cannot change results.
+  XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/xdg"
+  mkdir -p "$XDG_CONFIG_HOME"
+  export XDG_CONFIG_HOME
   defaults() { printf '(\n    "en-US",\n    "zh-Hans-CN"\n)\n'; }
+}
+
+write_preference() {
+  mkdir -p "$XDG_CONFIG_HOME/dotgraft"
+  printf '%s\n' "$1" > "$XDG_CONFIG_HOME/dotgraft/language"
 }
 
 @test "explicit language overrides locale" {
@@ -50,4 +59,27 @@ setup() {
 @test "invalid explicit language defaults to English" {
   DOTGRAFT_LANG=unknown LANG=zh_CN.UTF-8 run dotgraft_detect_language
   [ "$output" = en ]
+}
+
+@test "saved preference wins over locale" {
+  write_preference zh
+  LANG=en_US.UTF-8 run dotgraft_detect_language
+  [ "$output" = zh ]
+}
+
+@test "explicit language wins over the saved preference" {
+  write_preference zh
+  DOTGRAFT_LANG=en run dotgraft_detect_language
+  [ "$output" = en ]
+}
+
+@test "unsupported saved preference falls through to locale" {
+  write_preference fr
+  LANG=zh_CN.UTF-8 run dotgraft_detect_language
+  [ "$output" = zh ]
+}
+
+@test "missing saved preference file falls through to locale" {
+  LANG=zh_CN.UTF-8 run dotgraft_detect_language
+  [ "$output" = zh ]
 }

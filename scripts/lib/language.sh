@@ -9,8 +9,9 @@ dotgraft_locale_language() {
   esac
 }
 
-# Explicit overrides win, followed by locale variables and macOS preferences.
-# Do not change LC_ALL/LANG: external tools retain their own locale behavior.
+# Explicit overrides win, then the language saved by `dotgraft lang`, then
+# locale variables and macOS preferences. Do not change LC_ALL/LANG:
+# external tools retain their own locale behavior.
 dotgraft_detect_language() {
   if [ -n "${DOTGRAFT_LANG:-}" ]; then
     case "$DOTGRAFT_LANG" in
@@ -19,6 +20,20 @@ dotgraft_detect_language() {
     esac
     return
   fi
+
+  # `dotgraft lang` persists a preference. The environment variable above
+  # still wins; an unreadable or unsupported value falls through to detection.
+  dotgraft_saved="${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/language"
+  dotgraft_saved_language=""
+  if [ -r "$dotgraft_saved" ]; then
+    read -r dotgraft_saved_language < "$dotgraft_saved" || true
+  fi
+  case "$dotgraft_saved_language" in
+    en | zh)
+      printf '%s\n' "$dotgraft_saved_language"
+      return
+      ;;
+  esac
 
   # The first populated locale is authoritative. An unsupported locale falls
   # back to English rather than a lower-priority, potentially stale variable.

@@ -53,6 +53,9 @@ extract_detector() {
     plain)
       sed -n '/^# Return en\/zh/,/^# Resolve the UI language/p' "$file" | sed '$d'
       ;;
+    zsh)
+      sed -n '/^# Return en\/zh/,/^# Resolve the completion language/p' "$file" | sed '$d'
+      ;;
   esac
 }
 
@@ -120,7 +123,8 @@ extract_detector() {
     'lib scripts/lib/language.sh' \
     'marked bootstrap.sh' \
     'plain dot_local/bin/executable_dotgraft' \
-    'plain run_onchange_install-packages.sh.tmpl'; do
+    'plain run_onchange_install-packages.sh.tmpl' \
+    'zsh dot_config/zsh/conf.d/80-dotgraft.zsh'; do
     set -- $spec
     kind="$1"
     file="$REPO_ROOT/$2"
@@ -135,6 +139,8 @@ extract_detector() {
   [ "$status" -eq 0 ]
   run diff -u "$TMP/language.sh.detector" "$TMP/run_onchange_install-packages.sh.tmpl.detector"
   [ "$status" -eq 0 ]
+  run diff -u "$TMP/language.sh.detector" "$TMP/80-dotgraft.zsh.detector"
+  [ "$status" -eq 0 ]
 }
 
 @test "all embedded detectors make the same runtime language decisions" {
@@ -143,17 +149,21 @@ extract_detector() {
   extract_detector marked "$BOOTSTRAP" > "$TMP/bootstrap.sh.detector"
   extract_detector plain "$CLI" > "$TMP/executable_dotgraft.detector"
   extract_detector plain "$TEMPLATE" > "$TMP/run_onchange_install-packages.sh.tmpl.detector"
+  extract_detector zsh "$REPO_ROOT/dot_config/zsh/conf.d/80-dotgraft.zsh" > "$TMP/80-dotgraft.zsh.detector"
 
   local implementation detected expected
   for implementation in \
     "$TMP/bootstrap.sh.detector" \
     "$TMP/executable_dotgraft.detector" \
-    "$TMP/run_onchange_install-packages.sh.tmpl.detector"; do
+    "$TMP/run_onchange_install-packages.sh.tmpl.detector" \
+    "$TMP/80-dotgraft.zsh.detector"; do
     [ -s "$implementation" ]
   done
 
   # Scenario columns use "-" for an unset value: explicit, LC_ALL,
   # LC_MESSAGES, LANG, the first macOS preferred language, and expected.
+  # XDG_CONFIG_HOME is isolated so a developer's saved preference cannot leak in.
+  mkdir -p "$TMP/xdg"
   while read -r explicit lc_all lc_messages locale preferred expected; do
     [ "$explicit" = "-" ] && explicit=""
     [ "$lc_all" = "-" ] && lc_all=""
@@ -163,9 +173,10 @@ extract_detector() {
     for implementation in "$source" \
       "$TMP/bootstrap.sh.detector" \
       "$TMP/executable_dotgraft.detector" \
-      "$TMP/run_onchange_install-packages.sh.tmpl.detector"; do
+      "$TMP/run_onchange_install-packages.sh.tmpl.detector" \
+      "$TMP/80-dotgraft.zsh.detector"; do
       run env DOTGRAFT_LANG="$explicit" LC_ALL="$lc_all" LC_MESSAGES="$lc_messages" \
-        LANG="$locale" PREFERRED="$preferred" bash -c '
+        LANG="$locale" PREFERRED="$preferred" XDG_CONFIG_HOME="$TMP/xdg" bash -c '
           defaults() { printf "(\n    \"%s\",\n    \"en-US\"\n)\n" "$PREFERRED"; }
           source "$1"
           dotgraft_detect_language
@@ -286,4 +297,77 @@ run_dependency_script() {
   assert_contains '! 有依赖没装上'
   assert_contains '修复网络或 Homebrew 后运行 dotgraft deps 重试'
   assert_not_contains 'Some dependencies were not installed'
+}
+
+# Run the CLI with no DOTGRAFT_LANG, so the saved preference or locale decides.
+run_cli_locale() {
+  local locale="$1"
+  shift
+  run env HOME="$TMP/home" DOTGRAFT_LANG= LC_ALL= LC_MESSAGES= LANG="$locale" \
+    bash "$CLI" "$@"
+}
+
+@test "lang reports the effective language and its source" {
+  run_cli en lang
+  [ "$status" -eq 0 ]
+  assert_contains 'UI language'
+  assert_contains 'Current: en (DOTGRAFT_LANG environment variable)'
+  assert_contains 'Switch: dotgraft lang en | zh | auto'
+
+  run_cli zh lang
+  [ "$status" -eq 0 ]
+  assert_contains '界面语言'
+  assert_contains '当前: zh（DOTGRAFT_LANG 环境变量）'
+}
+
+@test "lang persists a preference that localizes later runs" {
+  run_cli en lang zh
+  [ "$status" -eq 0 ]
+  assert_contains 'Language saved: zh'
+  [ "$(cat "$TMP/home/.config/dotgraft/language")" = zh ]
+
+  # The saved preference outranks the locale, and the CLI says so.
+  run_cli_locale en_US.UTF-8 help
+  [ "$status" -eq 0 ]
+  assert_contains '用法: dotgraft <命令>'
+
+  run_cli_locale en_US.UTF-8 lang
+  [ "$status" -eq 0 ]
+  assert_contains '当前: zh（已保存的偏好）'
+
+  run_cli en lang en
+  [ "$status" -eq 0 ]
+  assert_contains 'Language saved: en'
+  run_cli_locale zh_CN.UTF-8 lang
+  [ "$status" -eq 0 ]
+  assert_contains 'Current: en (saved preference)'
+
+  run_cli_locale zh_CN.UTF-8 lang auto
+  [ "$status" -eq 0 ]
+  [ ! -e "$TMP/home/.config/dotgraft/language" ]
+
+  run_cli_locale zh_CN.UTF-8 lang
+  [ "$status" -eq 0 ]
+  assert_contains '当前: zh（自动检测）'
+}
+
+@test "lang warns when DOTGRAFT_LANG outranks the saved preference" {
+  run_cli en lang zh
+  [ "$status" -eq 0 ]
+  assert_contains 'DOTGRAFT_LANG=en is set here and still wins'
+}
+
+@test "lang rejects unsupported values" {
+  run_cli en lang fr
+  [ "$status" -eq 1 ]
+  assert_contains 'Error: Unknown language: fr (expected en, zh, or auto)'
+  [ ! -e "$TMP/home/.config/dotgraft/language" ]
+
+  run_cli zh lang fr
+  [ "$status" -eq 1 ]
+  assert_contains '错误: 未知语言：fr（应为 en、zh 或 auto）'
+
+  run_cli en lang en zh
+  [ "$status" -eq 1 ]
+  assert_contains 'Error: Usage: dotgraft lang [en|zh|auto]'
 }

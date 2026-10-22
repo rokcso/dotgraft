@@ -96,7 +96,16 @@ Separate source directories do not prevent conflicts if another configuration ma
 
 ## Language
 
-The `dotgraft` command uses English or Simplified Chinese for its output. Set `DOTGRAFT_LANG=en` or `DOTGRAFT_LANG=zh` to override the detected language. Otherwise Dotgraft checks `LC_ALL`, then `LC_MESSAGES`, then `LANG`; if those are missing or set to `C`, `POSIX`, `C.UTF-8`, or `C.utf8`, it uses the first preferred macOS UI language from `AppleLanguages`. Unknown locales and unsupported values fall back to English. Dotgraft does not change the locale variables, so external tools keep their own locale behavior.
+The `dotgraft` command uses English or Simplified Chinese for its output. Switch it with:
+
+```bash
+DOTGRAFT_LANG=zh dotgraft status   # one run only
+dotgraft lang zh                    # save the preference
+dotgraft lang                      # show the current language and its source
+dotgraft lang auto                 # drop the preference, detect again
+```
+
+`dotgraft lang` writes `~/.config/dotgraft/language`, which is not a chezmoi target, so switching needs no apply. The order is: `DOTGRAFT_LANG`, then the saved preference, then `LC_ALL`, then `LC_MESSAGES`, then `LANG`; if those are missing or set to `C`, `POSIX`, `C.UTF-8`, or `C.utf8`, it uses the first preferred macOS UI language from `AppleLanguages`. Unknown locales and unsupported values fall back to English. Dotgraft does not change the locale variables, so external tools keep their own locale behavior. Run `exec zsh` after switching to refresh shell completion.
 
 The guides below are available in English and [简体中文](docs/zh-CN/usage.md). Each guide has a language link at the top.
 

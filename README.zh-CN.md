@@ -91,7 +91,16 @@ Starship 会自动使用对应调色板。配色、对比度和切换细节见 [
 
 ## 语言
 
-`dotgraft` 命令的输出使用英文或简体中文。设置 `DOTGRAFT_LANG=en` 或 `DOTGRAFT_LANG=zh` 可覆盖检测结果。否则依次检查 `LC_ALL`、`LC_MESSAGES`、`LANG`；如果这些变量缺失，或值为 `C`、`POSIX`、`C.UTF-8`、`C.utf8`，则使用 macOS `AppleLanguages` 中的第一个首选界面语言。未知 locale 和不支持的值会回退到英文。Dotgraft 不会修改 locale 变量，外部工具仍保持各自的 locale 行为。
+`dotgraft` 命令的输出使用英文或简体中文。切换方式：
+
+```bash
+DOTGRAFT_LANG=zh dotgraft status   # 只影响这一次
+dotgraft lang zh                    # 保存偏好
+dotgraft lang                      # 查看当前语言及来源
+dotgraft lang auto                 # 删除偏好，恢复自动检测
+```
+
+`dotgraft lang` 写入 `~/.config/dotgraft/language`，它不是 chezmoi 的受管文件，切换不需要执行 apply。优先级依次为：`DOTGRAFT_LANG`、已保存的偏好、`LC_ALL`、`LC_MESSAGES`、`LANG`；如果这些变量缺失，或值为 `C`、`POSIX`、`C.UTF-8`、`C.utf8`，则使用 macOS `AppleLanguages` 中的第一个首选界面语言。未知 locale 和不支持的值会回退到英文。Dotgraft 不会修改 locale 变量，外部工具仍保持各自的 locale 行为。切换后执行 `exec zsh` 可刷新 shell 补全。
 
 以下指南同时提供 [English](docs/usage.md) 和简体中文版本，每篇指南顶部都有语言切换链接。
 

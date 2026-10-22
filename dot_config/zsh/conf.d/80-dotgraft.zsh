@@ -19,8 +19,9 @@ dotgraft_locale_language() {
   esac
 }
 
-# Explicit overrides win, followed by locale variables and macOS preferences.
-# Do not change LC_ALL/LANG: external tools retain their own locale behavior.
+# Explicit overrides win, then the language saved by `dotgraft lang`, then
+# locale variables and macOS preferences. Do not change LC_ALL/LANG:
+# external tools retain their own locale behavior.
 dotgraft_detect_language() {
   if [ -n "${DOTGRAFT_LANG:-}" ]; then
     case "$DOTGRAFT_LANG" in
@@ -29,6 +30,20 @@ dotgraft_detect_language() {
     esac
     return
   fi
+
+  # `dotgraft lang` persists a preference. The environment variable above
+  # still wins; an unreadable or unsupported value falls through to detection.
+  dotgraft_saved="${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/language"
+  dotgraft_saved_language=""
+  if [ -r "$dotgraft_saved" ]; then
+    read -r dotgraft_saved_language < "$dotgraft_saved" || true
+  fi
+  case "$dotgraft_saved_language" in
+    en | zh)
+      printf '%s\n' "$dotgraft_saved_language"
+      return
+      ;;
+  esac
 
   # The first populated locale is authoritative. An unsupported locale falls
   # back to English rather than a lower-priority, potentially stale variable.
@@ -61,7 +76,7 @@ _dotgraft_ui_lang="$(dotgraft_detect_language)"
 
 # Subcommand completion: dotgraft <Tab> / dotg <Tab>
 _dotgraft() {
-  local -a commands themes
+  local -a commands themes languages
 
   if [[ "$_dotgraft_ui_lang" == "zh" ]]; then
     commands=(
@@ -71,6 +86,7 @@ _dotgraft() {
       'update:拉取上游、预览并应用'
       'deps:安装/修复 Homebrew 依赖'
       'theme:切换 Ghostty + Starship 主题'
+      'lang:切换界面语言'
       'reconfigure:重新选择组件'
       'edit:编辑受管文件的仓库副本'
       'cd:进入 Dotgraft 的 chezmoi source'
@@ -87,6 +103,7 @@ _dotgraft() {
       'update:Pull upstream, then preview and apply'
       'deps:Install/repair Homebrew dependencies'
       'theme:Switch Ghostty + Starship theme'
+      'lang:Switch the UI language'
       'reconfigure:Choose components again'
       'edit:Edit the repository copy of a managed file'
       'cd:Enter the Dotgraft chezmoi source'
@@ -145,6 +162,22 @@ _dotgraft() {
             )
           fi
           _describe -t themes 'theme' themes
+          ;;
+        lang)
+          if [[ "$_dotgraft_ui_lang" == "zh" ]]; then
+            languages=(
+              'en:英文'
+              'zh:简体中文'
+              'auto:恢复自动检测'
+            )
+          else
+            languages=(
+              'en:English'
+              'zh:Simplified Chinese'
+              'auto:Restore automatic detection'
+            )
+          fi
+          _describe -t languages 'language' languages
           ;;
         chezmoi)
           # Let chezmoi handle its own completion; do not override it here

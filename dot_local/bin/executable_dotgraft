@@ -18,8 +18,9 @@ dotgraft_locale_language() {
   esac
 }
 
-# Explicit overrides win, followed by locale variables and macOS preferences.
-# Do not change LC_ALL/LANG: external tools retain their own locale behavior.
+# Explicit overrides win, then the language saved by `dotgraft lang`, then
+# locale variables and macOS preferences. Do not change LC_ALL/LANG:
+# external tools retain their own locale behavior.
 dotgraft_detect_language() {
   if [ -n "${DOTGRAFT_LANG:-}" ]; then
     case "$DOTGRAFT_LANG" in
@@ -28,6 +29,20 @@ dotgraft_detect_language() {
     esac
     return
   fi
+
+  # `dotgraft lang` persists a preference. The environment variable above
+  # still wins; an unreadable or unsupported value falls through to detection.
+  dotgraft_saved="${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/language"
+  dotgraft_saved_language=""
+  if [ -r "$dotgraft_saved" ]; then
+    read -r dotgraft_saved_language < "$dotgraft_saved" || true
+  fi
+  case "$dotgraft_saved_language" in
+    en | zh)
+      printf '%s\n' "$dotgraft_saved_language"
+      return
+      ;;
+  esac
 
   # The first populated locale is authoritative. An unsupported locale falls
   # back to English rather than a lower-priority, potentially stale variable.
@@ -55,7 +70,10 @@ dotgraft_detect_language() {
   fi
 }
 
-# Resolve the UI language exactly once for the lifetime of this process.
+# Resolve the UI language exactly once for the lifetime of this process. Keep
+# the incoming variable so `dotgraft lang` can report when it outranks the
+# saved preference.
+DOTGRAFT_LANG_ENV="${DOTGRAFT_LANG:-}"
 DOTGRAFT_UI_LANG="$(dotgraft_detect_language)"
 export DOTGRAFT_LANG="$DOTGRAFT_UI_LANG"
 
@@ -378,6 +396,95 @@ cmd_theme() {
 
   note "$(dg_text 'Theme switched: %s' '主题已切换: %s' "$theme")"
   note "$(dg_text 'Ghostty: press Cmd+Shift+, to reload; Starship: exec zsh' 'Ghostty: Cmd+Shift+, 重新加载；Starship: exec zsh')"
+}
+
+# ==============================================================================
+# language
+# ==============================================================================
+# A preference saved by `dotgraft lang` lives outside chezmoi: bootstrap.sh and
+# the zsh completion read the same file, so switching needs no apply.
+language_file() {
+  printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/dotgraft/language"
+}
+
+saved_language() {
+  local file value=""
+  file="$(language_file)"
+  if [[ -r "$file" ]]; then
+    read -r value < "$file" || true
+  fi
+  case "$value" in
+    en | zh) printf '%s\n' "$value" ;;
+  esac
+}
+
+language_source() {
+  case "$DOTGRAFT_LANG_ENV" in
+    en | zh)
+      printf 'env\n'
+      return
+      ;;
+  esac
+  if [[ -n "$(saved_language)" ]]; then
+    printf 'saved\n'
+  else
+    printf 'detected\n'
+  fi
+}
+
+cmd_lang() {
+  local file origin value
+  file="$(language_file)"
+
+  if [[ $# -eq 0 ]]; then
+    step "$(dg_text 'UI language' '界面语言')"
+    case "$(language_source)" in
+      env) origin="$(dg_text 'DOTGRAFT_LANG environment variable' 'DOTGRAFT_LANG 环境变量')" ;;
+      saved) origin="$(dg_text 'saved preference' '已保存的偏好')" ;;
+      *) origin="$(dg_text 'auto-detected' '自动检测')" ;;
+    esac
+    note "$(dg_text 'Current: %s (%s)' '当前: %s（%s）' "$DOTGRAFT_UI_LANG" "$origin")"
+    note "$(dg_text 'Available: en, zh, auto' '可用: en、zh、auto')"
+    printf '\n'
+    note "$(dg_text 'Switch: dotgraft lang en | zh | auto' '切换: dotgraft lang en | zh | auto')"
+    note "$(dg_text 'auto removes the saved preference and detects the language again.' 'auto 删除已保存的偏好，重新自动检测。')"
+    return 0
+  fi
+
+  [[ $# -eq 1 ]] ||
+    die "$(dg_text 'Usage: dotgraft lang [en|zh|auto]' '用法: dotgraft lang [en|zh|auto]')"
+
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+    en) value=en ;;
+    zh) value=zh ;;
+    auto) value=auto ;;
+    *) die "$(dg_text 'Unknown language: %s (expected en, zh, or auto)' '未知语言：%s（应为 en、zh 或 auto）' "$1")" ;;
+  esac
+
+  if [[ "$value" == "auto" ]]; then
+    rm -f "$file" ||
+      die "$(dg_text 'Unable to remove %s' '无法删除 %s' "$file")"
+  else
+    mkdir -p "$(dirname "$file")" ||
+      die "$(dg_text 'Unable to create %s' '无法创建 %s' "$(dirname "$file")")"
+    printf '%s\n' "$value" > "$file" ||
+      die "$(dg_text 'Unable to write %s' '无法写入 %s' "$file")"
+  fi
+
+  # Report in the language that now applies, not the one from process start.
+  DOTGRAFT_UI_LANG="$(dotgraft_detect_language)"
+
+  if [[ "$value" == "auto" ]]; then
+    note "$(dg_text 'Language preference cleared; automatic detection is active again.' '已清除语言偏好，恢复自动检测。')"
+  else
+    note "$(dg_text 'Language saved: %s' '语言已保存: %s' "$value")"
+  fi
+
+  if [[ -n "$DOTGRAFT_LANG_ENV" ]]; then
+    warn "$(dg_text 'DOTGRAFT_LANG=%s is set here and still wins; unset it to use the saved preference.' '当前 shell 设置了 DOTGRAFT_LANG=%s，仍然优先；取消该变量后保存的偏好才会生效。' "$DOTGRAFT_LANG_ENV")"
+  fi
+
+  note "$(dg_text 'Takes effect on the next dotgraft run; run exec zsh to refresh shell completions.' '下次运行 dotgraft 即生效；执行 exec zsh 可刷新 shell 补全。')"
 }
 
 # uninstall may only delete target paths in this allowlist.
@@ -1244,7 +1351,11 @@ cmd_uninstall() {
   rmdir "$HOME/.config/ghostty" 2> /dev/null || true
   rmdir "$HOME/.local/bin" 2> /dev/null || true
 
-  # 7. Clean up Dotgraft own source/config only when completely safe.
+  # 7. Remove the saved UI language preference: it is Dotgraft state, but it is
+  # not a chezmoi target, so purge does not know about it.
+  rm -f "$(language_file)"
+
+  # 8. Clean up Dotgraft own source/config only when completely safe.
   if can_purge_source; then
     chezmoi_dg purge --force
     rmdir "$(dirname "$DOTGRAFT_CONFIG")" 2> /dev/null || true
@@ -1287,6 +1398,7 @@ Commands:
   update        Pull upstream updates and apply them (including dependencies)
   deps          Unconditionally install/repair Homebrew dependencies
   theme [name]  Switch the Ghostty + Starship theme (ink / paper / porcelain / list)
+  lang [en|zh|auto]  Switch the UI language; auto restores detection
   backup [list|show <timestamp>]  List existing backups
   restore <timestamp> [--pre-existing] [--with-ghostty-override] [--yes]
                 Restore from a backup; current state is backed up first
@@ -1311,6 +1423,7 @@ For first-time installation, do not use this command:
   update        拉取上游更新并应用（含依赖）
   deps          无条件安装/修复 Homebrew 依赖
   theme [名称]  切换 Ghostty + Starship 主题（ink / paper / porcelain / list）
+  lang [en|zh|auto]  切换界面语言；auto 恢复自动检测
   backup [list|show <时间戳>]  查看已有备份
   restore <时间戳> [--pre-existing] [--with-ghostty-override] [--yes]
                 从备份恢复，恢复前会自动再备份当前状态
@@ -1341,6 +1454,7 @@ main() {
     update) cmd_update ;;
     deps) cmd_deps ;;
     theme) cmd_theme "$@" ;;
+    lang | language) cmd_lang "$@" ;;
     backup) cmd_backup "$@" ;;
     restore) cmd_restore "$@" ;;
     reconfigure) cmd_reconfigure ;;

@@ -27,6 +27,7 @@ dotgraft status
 | `dotgraft deps` | Install or repair Homebrew dependencies unconditionally |
 | `dotgraft reconfigure` | Choose options again and repair dependencies |
 | `dotgraft theme [ink\|paper\|porcelain\|list]` | Switch themes |
+| `dotgraft lang [en\|zh\|auto]` | Switch the UI language |
 | `dotgraft backup [list\|show <timestamp>]` | Inspect backups |
 | `dotgraft restore <timestamp>` | Restore from a backup |
 | `dotgraft edit <file>` | Edit the repository copy of a managed file |
@@ -92,6 +93,17 @@ exec zsh
 
 Then press `Cmd + Shift + ,` in Ghostty to reload. For the full palettes and contrast ratios, see [Themes](themes.md).
 
+## Language
+
+```bash
+dotgraft lang        # Current language and where it came from
+dotgraft lang zh     # Save Simplified Chinese
+dotgraft lang en     # Save English
+dotgraft lang auto   # Remove the saved preference, detect again
+```
+
+`dotgraft lang` writes `~/.config/dotgraft/language`, outside chezmoi, so switching does not run an apply. An explicit `DOTGRAFT_LANG` still wins over the saved preference; `auto` falls back to `LC_ALL`, `LC_MESSAGES`, `LANG`, and finally the first macOS `AppleLanguages` entry. Run `exec zsh` afterwards to refresh completion.
+
 ## Local development installation
 
 A normal installation clones from GitHub `main` by default. To install the current local commit during development:
@@ -137,6 +149,7 @@ Managed targets are concentrated in a few paths under the home directory. Dotgra
 | `~/.config/starship.toml` | Starship configuration | Fully managed |
 | `~/.local/bin/dotgraft` | The command itself | Fully managed |
 | `~/.config/dotgraft/chezmoi.toml` | Option answers | Generated locally; never committed |
+| `~/.config/dotgraft/language` | Saved UI language from `dotgraft lang` | Written locally; optional |
 
 Dotgraft also creates or modifies:
 

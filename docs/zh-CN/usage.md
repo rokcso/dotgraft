@@ -27,6 +27,7 @@ dotgraft status
 | `dotgraft deps` | 无条件安装/修复 Homebrew 依赖 |
 | `dotgraft reconfigure` | 重新选配，并修复依赖 |
 | `dotgraft theme [ink\|paper\|porcelain\|list]` | 切换主题 |
+| `dotgraft lang [en\|zh\|auto]` | 切换界面语言 |
 | `dotgraft backup [list\|show <时间戳>]` | 查看备份 |
 | `dotgraft restore <时间戳>` | 从备份恢复 |
 | `dotgraft edit <文件>` | 编辑受管文件的仓库副本 |
@@ -92,6 +93,17 @@ exec zsh
 
 再在 Ghostty 里按 `Cmd + Shift + ,` 重载。完整色板和对比度见 [Themes](themes.md)。
 
+## 语言
+
+```bash
+dotgraft lang        # 查看当前语言及来源
+dotgraft lang zh     # 保存简体中文
+dotgraft lang en     # 保存英文
+dotgraft lang auto   # 删除偏好，恢复自动检测
+```
+
+`dotgraft lang` 写入 `~/.config/dotgraft/language`，不在 chezmoi 管理范围内，切换不需要执行 apply。显式设置的 `DOTGRAFT_LANG` 仍然优先于已保存的偏好；`auto` 会回落到 `LC_ALL`、`LC_MESSAGES`、`LANG`，最后是 macOS `AppleLanguages` 的第一个首选语言。切换后执行 `exec zsh` 刷新补全。
+
 ## 本地开发安装
 
 正式安装默认从 GitHub `main` clone。开发时想安装本地当前提交：
@@ -137,6 +149,7 @@ dotgraft apply
 | `~/.config/starship.toml` | Starship 配置 | 完全接管 |
 | `~/.local/bin/dotgraft` | 命令本体 | 完全接管 |
 | `~/.config/dotgraft/chezmoi.toml` | 选配答案 | 本机生成，不进仓库 |
+| `~/.config/dotgraft/language` | `dotgraft lang` 保存的界面语言 | 本机写入，可选 |
 
 此外会创建或修改：
 
