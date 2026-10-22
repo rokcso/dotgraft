@@ -802,6 +802,7 @@ assert_no_file "$idem/Brewfile"
 assert_no_file "$idem/bootstrap.sh"
 assert_no_file "$idem/docs"
 assert_no_file "$idem/tests"
+assert_no_file "$idem/scripts"
 
 # ------------------------------------------------------------------------------
 # 结果

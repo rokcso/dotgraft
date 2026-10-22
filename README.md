@@ -202,11 +202,15 @@ dotgraft version
 
 Release tag 使用 `vX.Y.Z`，GitHub Actions 会：
 
+- 在 macOS 14 / latest 上跑单元测试和完整 smoke
 - 校验 tag 与 `VERSION` 一致
 - 运行主题契约检查
 - 打包源码 tarball 和 bootstrap
 - 生成 `SHA256SUMS`
+- 从 `CHANGELOG.md` 对应版本段落生成 release notes
 - 发布 GitHub Release
+
+发布门禁在 release workflow 里：只有 macOS 测试通过，才会创建 GitHub Release。
 
 ## 会改动哪些文件
 

@@ -38,6 +38,7 @@
 ├── .github/workflows/ci.yml                # 每次 push 自动跑检查和渲染测试
 ├── tests/smoke.sh                          # 端到端冒烟测试，本地和 CI 共用
 ├── tests/unit/                             # bats 单元测试
+├── scripts/release-notes.py                # 从 CHANGELOG 提取 release notes
 ├── docs/
 ├── LICENSE
 └── README.md
@@ -281,6 +282,6 @@ ghostty +validate-config --config-file=<(dotgraft chezmoi execute-template < dot
 |---|---|---|
 | `lint` | ubuntu | `shellcheck`、`shfmt -d`、`python3 tests/theme-contract.py`、`zsh -n` |
 | `render` | macOS 14 / latest | 装 chezmoi、Ghostty 和 bats，跑 `bats tests/unit` + `tests/smoke.sh` |
-| `release` | ubuntu（tag push） | 校验 `VERSION`、主题契约、打包 tarball + `SHA256SUMS`、创建 GitHub Release |
+| `release` | macOS 14 / latest + ubuntu（tag push） | 先在 macOS 跑单元测试和 smoke；通过后才校验 `VERSION`、主题契约、打包 tarball + `SHA256SUMS`、生成 release notes 并创建 GitHub Release |
 
 `render` 那条才是关键：它跑的就是用户安装时会走的同一条路径。模板写错、选配项写错、`.chezmoiignore` 漏了目录，都会在那里暴露。Ghostty 安装不再 `continue-on-error`，否则主题和配置校验会被静默跳过。CI 里的 `shfmt` 版本是固定的，避免 `@latest` 改变格式规则导致流水线漂移。

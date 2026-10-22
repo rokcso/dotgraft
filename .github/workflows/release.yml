@@ -9,8 +9,35 @@ permissions:
   contents: write
 
 jobs:
+  # 发布前在 macOS 上跑和 CI 相同的测试。
+  # 只有这里通过，release job 才会打包并创建 GitHub Release。
+  validate:
+    name: Validate release (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install chezmoi and bats
+        run: brew install chezmoi bats-core
+
+      # cask 装的是 .app，不保证在 PATH 里建符号链接，
+      # doctor 和 smoke 会自己去 /Applications 找二进制。
+      - name: Install Ghostty
+        run: brew install --cask ghostty
+
+      - name: Unit tests
+        run: bats tests/unit
+
+      - name: Smoke test
+        run: bash tests/smoke.sh
+
   release:
     name: Package and publish release
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,11 +63,24 @@ jobs:
           cp bootstrap.sh "dist/${prefix}-bootstrap.sh"
           (cd dist && sha256sum "${prefix}.tar.gz" "${prefix}-bootstrap.sh" > SHA256SUMS)
 
+      - name: Build release notes from CHANGELOG
+        run: |
+          set -euo pipefail
+          python3 scripts/release-notes.py "${GITHUB_REF_NAME}" > dist/RELEASE_NOTES.md
+          printf '\n**Full Changelog**: https://github.com/%s/commits/%s\n' \
+            "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" >> dist/RELEASE_NOTES.md
+          test -s dist/RELEASE_NOTES.md
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create "${GITHUB_REF_NAME}" dist/* \
-            --title "${GITHUB_REF_NAME}" \
-            --generate-notes
+          tag="${GITHUB_REF_NAME}"
+          prefix="dotgraft-${tag}"
+          gh release create "${tag}" \
+            "dist/${prefix}.tar.gz" \
+            "dist/${prefix}-bootstrap.sh" \
+            "dist/SHA256SUMS" \
+            --title "${tag}" \
+            --notes-file "dist/RELEASE_NOTES.md"
