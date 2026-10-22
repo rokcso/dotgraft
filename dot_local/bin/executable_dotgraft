@@ -82,6 +82,17 @@ source_commit() {
   git -C "$DOTGRAFT_SOURCE" log -1 --format='%h %s' 2> /dev/null || printf 'unknown'
 }
 
+find_ghostty_bin() {
+  local candidate
+  for candidate in ghostty /Applications/Ghostty.app/Contents/MacOS/ghostty; do
+    if command -v "$candidate" > /dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
 cmd_version() {
   local version='unknown'
   if [[ -f "$DOTGRAFT_SOURCE/VERSION" ]]; then
@@ -688,8 +699,9 @@ cmd_doctor() {
     doctor_row warn "Starship" "命令或 ~/.config/starship.toml 缺失"
   fi
 
-  if command -v ghostty > /dev/null 2>&1; then
-    doctor_row ok "Ghostty" "$(ghostty --version 2> /dev/null | head -1 || true)"
+  local ghostty_bin=''
+  if ghostty_bin="$(find_ghostty_bin)"; then
+    doctor_row ok "Ghostty" "$("$ghostty_bin" --version 2> /dev/null | head -1 || true)"
   else
     doctor_row fail "Ghostty" "未找到"
   fi
