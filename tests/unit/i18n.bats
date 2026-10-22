@@ -143,8 +143,10 @@ OLD_TEMPLATE
   detector="$(sed -n '/^# BEGIN DOTGRAFT_LANGUAGE_EMBEDDED$/,/^# END DOTGRAFT_LANGUAGE_EMBEDDED$/p' "$BOOTSTRAP" | sed '1d;$d')"
   [ -n "$detector" ]
 
+  # XDG_CONFIG_HOME is isolated: a saved `dotgraft lang` preference must not
+  # decide this test, which is about the failing-defaults fallback.
   # shellcheck disable=SC2016 # DETECTOR is evaluated inside the child shell.
-  run env DETECTOR="$detector" bash -c '
+  run env DETECTOR="$detector" XDG_CONFIG_HOME="$TMP/xdg" bash -c '
     set -euo pipefail
     defaults() { return 1; }
     eval "$DETECTOR"
