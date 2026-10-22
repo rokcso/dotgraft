@@ -611,13 +611,13 @@ cmd_doctor() {
   fi
 
   if command -v brew > /dev/null 2>&1; then
-    doctor_row ok "Homebrew" "$(brew --version 2> /dev/null | head -1) ($(brew --prefix 2> /dev/null))"
+    doctor_row ok "Homebrew" "$(brew --version 2> /dev/null | head -1 || true) ($(brew --prefix 2> /dev/null || true))"
   else
     doctor_row fail "Homebrew" "未找到"
   fi
 
   if command -v chezmoi > /dev/null 2>&1; then
-    doctor_row ok "chezmoi" "$(chezmoi --version 2> /dev/null | head -1)"
+    doctor_row ok "chezmoi" "$(chezmoi --version 2> /dev/null | head -1 || true)"
   else
     doctor_row fail "chezmoi" "未找到"
   fi
@@ -683,13 +683,13 @@ cmd_doctor() {
   fi
 
   if command -v starship > /dev/null 2>&1 && [[ -f "$HOME/.config/starship.toml" ]]; then
-    doctor_row ok "Starship" "$(starship --version 2> /dev/null | head -1)"
+    doctor_row ok "Starship" "$(starship --version 2> /dev/null | head -1 || true)"
   else
     doctor_row warn "Starship" "命令或 ~/.config/starship.toml 缺失"
   fi
 
   if command -v ghostty > /dev/null 2>&1; then
-    doctor_row ok "Ghostty" "$(ghostty --version 2> /dev/null | head -1)"
+    doctor_row ok "Ghostty" "$(ghostty --version 2> /dev/null | head -1 || true)"
   else
     doctor_row fail "Ghostty" "未找到"
   fi
@@ -715,7 +715,7 @@ cmd_doctor() {
 
   local active_theme='' expected_palette='' active_palette=''
   if [[ -f "$HOME/.config/ghostty/config" ]]; then
-    active_theme="$(sed -n 's/^theme = //p' "$HOME/.config/ghostty/config" | head -1 | tr -d '"')"
+    active_theme="$(sed -n 's/^theme = //p' "$HOME/.config/ghostty/config" | head -1 | tr -d '"' || true)"
   fi
   if [[ -n "$active_theme" ]]; then
     doctor_row ok "active theme" "$active_theme"
@@ -729,7 +729,7 @@ cmd_doctor() {
     esac
 
     if [[ -f "$HOME/.config/starship.toml" ]]; then
-      active_palette="$(sed -n "s/^palette = ['\"]\(.*\)['\"]$/\1/p" "$HOME/.config/starship.toml" | head -1)"
+      active_palette="$(sed -n "s/^palette = ['\"]\(.*\)['\"]$/\1/p" "$HOME/.config/starship.toml" | head -1 || true)"
     fi
     if [[ "$active_palette" == "$expected_palette" ]]; then
       doctor_row ok "Starship palette" "$active_palette"
@@ -747,8 +747,8 @@ cmd_doctor() {
   fi
 
   local backup_count latest_backup
-  backup_count="$(list_backups | wc -l | tr -d ' ')"
-  latest_backup="$(list_backups | tail -1)"
+  backup_count="$(list_backups | wc -l | tr -d ' ' || true)"
+  latest_backup="$(list_backups | tail -1 || true)"
   latest_backup="${latest_backup##*/}"
   if [[ "$backup_count" -gt 0 ]]; then
     doctor_row ok "backups" "$backup_count（最近 $latest_backup）"
