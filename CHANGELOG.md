@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1
 
 - 新增 `dotgraft lang [en|zh|auto]`，界面语言可持久保存，且优先于 locale
 - 语言偏好写入 `~/.config/dotgraft/language`，不需要执行 `apply`

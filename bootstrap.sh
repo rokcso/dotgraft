@@ -163,7 +163,7 @@ usage() {
   -h, --help             Show this help
 
 You can also use environment variables: DOTGRAFT_YES, DOTGRAFT_TOOLS, DOTGRAFT_THEME, DOTGRAFT_GLASS, DOTGRAFT_REF.
-Use DOTGRAFT_REF to install a release tag, for example DOTGRAFT_REF=v0.1.0.
+Use DOTGRAFT_REF to install a release tag, for example DOTGRAFT_REF=v0.1.1.
 ' '用法: bootstrap.sh [选项]
 
   -y, --yes              非交互安装；未指定的选项使用默认值
@@ -173,7 +173,7 @@ Use DOTGRAFT_REF to install a release tag, for example DOTGRAFT_REF=v0.1.0.
   -h, --help             显示帮助
 
 也可以使用环境变量：DOTGRAFT_YES、DOTGRAFT_TOOLS、DOTGRAFT_THEME、DOTGRAFT_GLASS、DOTGRAFT_REF。
-DOTGRAFT_REF 用于安装某个 release tag，例如 DOTGRAFT_REF=v0.1.0。
+DOTGRAFT_REF 用于安装某个 release tag，例如 DOTGRAFT_REF=v0.1.1。
 '
 }
 

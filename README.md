@@ -24,7 +24,7 @@ The installer checks the environment, installs chezmoi, asks which tools and app
 Pin the installation to a release:
 
 ```bash
-DOTGRAFT_REF=v0.1.0 \
+DOTGRAFT_REF=v0.1.1 \
   bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/v0.1.0/bootstrap.sh)
 ```
 

@@ -20,7 +20,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/main/bootstr
 固定 release：
 
 ```bash
-DOTGRAFT_REF=v0.1.0 \
+DOTGRAFT_REF=v0.1.1 \
   bash <(curl -fsSL https://raw.githubusercontent.com/rokcso/dotgraft/v0.1.0/bootstrap.sh)
 ```
 
