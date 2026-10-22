@@ -1,2 +1,19 @@
+# macOS metadata
 .DS_Store
-PRE-INSTALL-STATE.md
+._*
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Release artifacts
+/dist/
+
+# Editor-local settings and temporary files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
