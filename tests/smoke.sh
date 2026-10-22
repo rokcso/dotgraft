@@ -752,6 +752,7 @@ if doctor_out="$(dotgraft_at "$cli4" doctor 2>&1)"; then
   ok "dotgraft doctor 正常退出"
 else
   bad "dotgraft doctor 非零退出"
+  printf '%s\n' "$doctor_out" | sed 's/^/      doctor: /'
 fi
 if [[ "$doctor_out" == *"Dotgraft source"* ]] && [[ "$doctor_out" == *"Dotgraft config"* ]] && [[ "$doctor_out" == *"managed files"* ]]; then
   ok "dotgraft doctor 输出 Dotgraft 专用检查"
