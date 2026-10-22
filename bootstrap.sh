@@ -90,7 +90,7 @@ normalize_tools() {
   raw="${raw//\// }"
   for tool in $raw; do
     if [[ " ${DOTGRAFT_TOOLS_ALLOWED[*]} " != *" $tool "* ]]; then
-      fail "未知 CLI 工具：$tool（可选：${DOTGRAFT_TOOLS_ALLOWED[*]}）"
+      fail "未知 CLI 工具：${tool}（可选：${DOTGRAFT_TOOLS_ALLOWED[*]}）"
     fi
     out="$out $tool"
   done
@@ -427,7 +427,7 @@ if [[ -z "$theme_choice" ]]; then
     theme_choice="$(choose_theme "Dotgraft Ink")"
   fi
 fi
-theme_is_valid "$theme_choice" || fail "无效主题：$theme_choice（可选：${DOTGRAFT_THEMES[*]}）"
+theme_is_valid "$theme_choice" || fail "无效主题：${theme_choice}（可选：${DOTGRAFT_THEMES[*]}）"
 
 glass_choice="${DOTGRAFT_GLASS:-}"
 if [[ -z "$glass_choice" ]]; then
@@ -439,7 +439,7 @@ if [[ -z "$glass_choice" ]]; then
 fi
 case "$glass_choice" in
   true | false) ;;
-  *) fail "无效 DOTGRAFT_GLASS：$glass_choice（应为 true 或 false）" ;;
+  *) fail "无效 DOTGRAFT_GLASS：${glass_choice}（应为 true 或 false）" ;;
 esac
 
 tools_choice=''

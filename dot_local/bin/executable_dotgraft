@@ -199,7 +199,7 @@ init_with_choices() {
   if [[ -z "$theme" ]]; then
     theme="$(choose_theme "$(current_theme)")"
   fi
-  theme_is_valid "$theme" || die "无效主题：$theme（可选：${DOTGRAFT_THEMES[*]}）"
+  theme_is_valid "$theme" || die "无效主题：${theme}（可选：${DOTGRAFT_THEMES[*]}）"
 
   glass="${DOTGRAFT_GLASS:-}"
   if [[ -z "$glass" ]]; then
@@ -207,7 +207,7 @@ init_with_choices() {
   fi
   case "$glass" in
     true | false) ;;
-    *) die "无效 DOTGRAFT_GLASS：$glass（应为 true 或 false）" ;;
+    *) die "无效 DOTGRAFT_GLASS：${glass}（应为 true 或 false）" ;;
   esac
 
   chezmoi_dg init \
@@ -251,17 +251,17 @@ cmd_theme() {
 
   local theme
   theme="$(resolve_theme_name "$arg")"
-  theme_is_valid "$theme" || die "未知主题：$arg。运行 dotgraft theme 查看列表。"
+  theme_is_valid "$theme" || die "未知主题：${arg}。运行 dotgraft theme 查看列表。"
 
   case "$theme" in
     "Dotgraft Ink" | "Dotgraft Paper" | "Dotgraft Porcelain")
-      [[ -f "$HOME/.config/ghostty/themes/$theme" ]] || die "主题文件不存在：${HOME}/.config/ghostty/themes/$theme。先运行 dotgraft apply。"
+      [[ -f "$HOME/.config/ghostty/themes/$theme" ]] || die "主题文件不存在：${HOME}/.config/ghostty/themes/${theme}。先运行 dotgraft apply。"
       ;;
   esac
 
   [[ -f "$DOTGRAFT_CONFIG" ]] || die "找不到选配文件：$DOTGRAFT_CONFIG"
   if [[ "$(current_theme)" == "$theme" ]]; then
-    note "当前已经是 $theme。"
+    note "当前已经是 ${theme}。"
   fi
 
   local tmp
@@ -451,7 +451,7 @@ cmd_diff() {
     case "$arg" in
       --full) full=1 ;;
       *)
-        die "未知参数: $arg。用法: dotgraft diff [--full]"
+        die "未知参数: ${arg}。用法: dotgraft diff [--full]"
         ;;
     esac
   done
@@ -607,7 +607,7 @@ cmd_doctor() {
   if [[ "$shell_path" == *zsh ]]; then
     doctor_row ok "Shell" "$shell_path"
   else
-    doctor_row warn "Shell" "$shell_path（Dotgraft 假设 zsh）"
+    doctor_row warn "Shell" "${shell_path}（Dotgraft 假设 zsh）"
   fi
 
   if command -v brew > /dev/null 2>&1; then
@@ -734,7 +734,7 @@ cmd_doctor() {
     if [[ "$active_palette" == "$expected_palette" ]]; then
       doctor_row ok "Starship palette" "$active_palette"
     else
-      doctor_row warn "Starship palette" "当前 ${active_palette:-未知}，期望 $expected_palette（运行 dotgraft apply）"
+      doctor_row warn "Starship palette" "当前 ${active_palette:-未知}，期望 ${expected_palette}（运行 dotgraft apply）"
     fi
   else
     doctor_row warn "active theme" "Ghostty 配置里没有 theme"
@@ -751,7 +751,7 @@ cmd_doctor() {
   latest_backup="$(list_backups | tail -1 || true)"
   latest_backup="${latest_backup##*/}"
   if [[ "$backup_count" -gt 0 ]]; then
-    doctor_row ok "backups" "$backup_count（最近 $latest_backup）"
+    doctor_row ok "backups" "${backup_count}（最近 ${latest_backup}）"
   else
     doctor_row warn "backups" "暂无备份"
   fi
