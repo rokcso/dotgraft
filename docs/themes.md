@@ -23,7 +23,7 @@ Dotgraft 的视觉语言不是“黑底霓虹”，也不是把浅色主题简�
 - **地面（Ground）**：长时间阅读代码的底色
 - **墨色（Ink）**：正文
 - **Graft Green**：品牌主信号，也是绿色 ANSI 语义
-- **Dot Amber**：光标与焦点
+- **Dot**：光标与焦点，随环境温度变化（琥珀 / 铜 / 蓝）
 - **Alert / Signal**：错误与信息语义
 
 Ink 是夜间工作台：深绿墨底、暖白前景、琥珀光标。  
@@ -31,6 +31,20 @@ Paper 是日间阅读面：暖纸底、墨绿前景、铜色光标。
 Porcelain 是冷光工具面：冷白底、蓝黑前景、蓝色光标。
 
 三套主题都只设置颜色相关配置。不要在主题文件里设置 `theme`、`config-file`、`keybind` 或 `background-image`。
+
+## 角色规则
+
+这三套主题不是三份独立配色，而是同一套角色系统在三种光照下的实例：
+
+```text
+Ground / Ink / Dot  → 表达环境与焦点温度
+Graft Green         → 品牌常量，同时用于 selection tint
+Alert / Signal      → 语义常量
+ANSI 色相           → 跨主题稳定，只做明度/彩度适配
+Selection           → Graft tint，不引入第三种强调色
+```
+
+因此 Paper 和 Porcelain 的绿色是同一个 Graft 绿，红色/蓝色也是各自的语义色；它们只改变地面、正文、光标和中性色。
 
 ## 基础色与对比度
 
@@ -52,9 +66,9 @@ Porcelain 是冷光工具面：冷白底、蓝黑前景、蓝色光标。
 |---|---|---:|
 | Background | `#F4F1E8` | — |
 | Foreground | `#26302B` | **12.07** |
-| Cursor | `#9A5B3A` | **4.73** |
-| Selection background | `#A8C9B6` | 1.59（对背景） |
-| Selection foreground | `#1E3A2F` | **6.87**（对选区背景） |
+| Cursor | `#8F4A14` | **5.89** |
+| Selection background | `#8FBBA1` | 1.90（对背景） |
+| Selection foreground | `#1E3A2F` | **5.75**（对选区背景） |
 
 ### Dotgraft Porcelain
 
@@ -62,37 +76,39 @@ Porcelain 是冷光工具面：冷白底、蓝黑前景、蓝色光标。
 |---|---|---:|
 | Background | `#F2F5F7` | — |
 | Foreground | `#1E2A32` | **13.39** |
-| Cursor | `#2F6F9E` | **4.93** |
-| Selection background | `#C6D9E2` | 1.33（对背景） |
-| Selection foreground | `#17323D` | **9.25**（对选区背景） |
+| Cursor | `#2A648F` | **5.78** |
+| Selection background | `#9CC5B2` | 1.74（对背景） |
+| Selection foreground | `#17323D` | **7.08**（对选区背景） |
 
 ## ANSI 16 色
+
+Paper 和 Porcelain 共用同一组 chromatic ANSI 色；中性色随地面温度微调。Ink 使用同一色相家族的亮色版本。
 
 | # | 角色 | Ink | Ink 对比度 | Paper | Paper 对比度 | Porcelain | Porcelain 对比度 |
 |---|---|---|---:|---|---:|---|---:|
 | 0 | black | `#212A25` | 1.22 | `#26302B` | 12.07 | `#1E2A32` | 13.39 |
 | 1 | red | `#E06C75` | 5.63 | `#B23A48` | 5.18 | `#B23A48` | 5.34 |
-| 2 | green | `#8BD49C` | 10.27 | `#2F7D4F` | 4.46 | `#2E7D5B` | 4.57 |
-| 3 | yellow | `#E5C07B` | 10.41 | `#8A6A1F` | 4.47 | `#8A6A1F` | 4.61 |
+| 2 | green | `#8BD49C` | 10.27 | `#2C784B` | 4.77 | `#2C784B` | 4.92 |
+| 3 | yellow | `#E5C07B` | 10.41 | `#83631A` | 4.94 | `#83631A` | 5.09 |
 | 4 | blue | `#7AA2F7` | 7.14 | `#2F5DA8` | 5.72 | `#2F5DA8` | 5.90 |
-| 5 | magenta | `#C99BEA` | 8.01 | `#7A4E9E` | 5.45 | `#6B5BA8` | 5.20 |
-| 6 | cyan | `#67D4C4` | 10.10 | `#167A78` | 4.55 | `#167A8A` | 4.58 |
+| 5 | magenta | `#C99BEA` | 8.01 | `#6B5BA8` | 5.04 | `#6B5BA8` | 5.20 |
+| 6 | cyan | `#67D4C4` | 10.10 | `#147371` | 5.00 | `#147371` | 5.16 |
 | 7 | white | `#C9D5CD` | 11.89 | `#A8B5AA` | 1.89 | `#A9B7C0` | 1.88 |
 | 8 | bright black | `#5A6B61` | 3.18 | `#6B7A70` | 4.00 | `#63737D` | 4.48 |
 | 9 | bright red | `#FF8A90` | 7.95 | `#8F2634` | 7.45 | `#8F2634` | 7.69 |
-| 10 | bright green | `#A6E3A1` | 12.09 | `#1F5F3A` | 6.75 | `#1F5F46` | 6.89 |
+| 10 | bright green | `#A6E3A1` | 12.09 | `#1F5F3A` | 6.75 | `#1F5F3A` | 6.96 |
 | 11 | bright yellow | `#FFD08A` | 12.54 | `#6F5415` | 6.29 | `#6F5415` | 6.49 |
 | 12 | bright blue | `#9AB8FF` | 9.14 | `#234B8A` | 7.61 | `#234B8A` | 7.84 |
-| 13 | bright magenta | `#E0B0FF` | 10.12 | `#633B84` | 7.47 | `#5A4A98` | 6.69 |
-| 14 | bright cyan | `#8CE8DC` | 12.58 | `#0E5E5C` | 6.70 | `#0E5E6C` | 6.76 |
+| 13 | bright magenta | `#E0B0FF` | 10.12 | `#5A4A98` | 6.48 | `#5A4A98` | 6.69 |
+| 14 | bright cyan | `#8CE8DC` | 12.58 | `#0E5E6C` | 6.56 | `#0E5E6C` | 6.76 |
 | 15 | bright white | `#F2F6F3` | 16.48 | `#D8D3C8` | 1.32 | `#D7E1E7` | 1.21 |
 
 说明：
 
 - ANSI `black` 在深色主题里、ANSI `white` / `bright white` 在浅色主题里，天然不适合正文；它们用于底色、边框或背景块。
-- Paper 是暖光纸面，Porcelain 是冷光瓷面；两者的正文和光标都经过独立测量，不是简单反色。
+- Paper 是暖光纸面，Porcelain 是冷光瓷面；两者的 chromatic ANSI 色相同，温度由 Ground/Ink/Dot 表达。
 - 红/绿仍遵循终端 ANSI 语义。色盲用户需要配合符号或文字，不能只靠颜色区分 Git 状态。
-- Paper 的选区背景对地面只有 1.59:1，Porcelain 是 1.33:1，这是浅色主题的正常范围；选中文本本身分别有 6.87 / 9.25:1。
+- 两套浅色主题的选区都使用 Graft tint；Paper 的选区对地面 1.90:1，Porcelain 为 1.74:1，选中文本分别为 5.75 / 7.08:1。
 
 ## Starship 联动
 
@@ -178,9 +194,10 @@ STARSHIP_CONFIG="$HOME/.config/starship.toml" starship prompt
 ```bash
 bats tests/unit
 bash tests/smoke.sh
+python3 tests/theme-contract.py
 ```
 
-smoke 覆盖三套主题的 Ghostty 校验、Starship palette、主题切换和受管文件白名单。
+`tests/theme-contract.py` 检查角色一致性、AA 对比度、ANSI 色相稳定和 Starship palette。smoke 覆盖三套主题的 Ghostty 校验、Starship palette、主题切换和受管文件白名单。
 
 ## 非目标
 

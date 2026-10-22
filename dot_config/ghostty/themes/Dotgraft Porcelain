@@ -1,16 +1,17 @@
 # Dotgraft Porcelain — 浅色冷光主题
+# 角色规则：Graft/Alert/Signal 固定；Ground/Ink/Dot 表达温度；Selection 使用 Graft tint。
 # 只设置颜色相关配置；不要在主题文件里设置 theme/config-file/keybind。
 palette = 0=#1E2A32
 palette = 1=#B23A48
-palette = 2=#2E7D5B
-palette = 3=#8A6A1F
+palette = 2=#2C784B
+palette = 3=#83631A
 palette = 4=#2F5DA8
 palette = 5=#6B5BA8
-palette = 6=#167A8A
+palette = 6=#147371
 palette = 7=#A9B7C0
 palette = 8=#63737D
 palette = 9=#8F2634
-palette = 10=#1F5F46
+palette = 10=#1F5F3A
 palette = 11=#6F5415
 palette = 12=#234B8A
 palette = 13=#5A4A98
@@ -18,7 +19,7 @@ palette = 14=#0E5E6C
 palette = 15=#D7E1E7
 background = #F2F5F7
 foreground = #1E2A32
-cursor-color = #2F6F9E
+cursor-color = #2A648F
 cursor-text = #F2F5F7
-selection-background = #C6D9E2
+selection-background = #9CC5B2
 selection-foreground = #17323D

@@ -45,6 +45,9 @@ jobs:
             dot_local/bin/executable_dotgraft \
             tests/smoke.sh
 
+      - name: Theme contract
+        run: python3 tests/theme-contract.py
+
       - name: zsh syntax
         run: |
           zsh -n dot_config/zsh/init.zsh

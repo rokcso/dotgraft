@@ -77,8 +77,8 @@ theme = dark:Dotgraft Ink,light:Dotgraft Paper
 |---|---|---|---|
 | Background | `#121816` | `#F4F1E8` | `#F2F5F7` |
 | Foreground | `#D8E3DA` | `#26302B` | `#1E2A32` |
-| Cursor | `#F2B36B` | `#9A5B3A` | `#2F6F9E` |
-| Selection background | `#345A4A` | `#A8C9B6` | `#C6D9E2` |
+| Cursor | `#F2B36B` | `#8F4A14` | `#2A648F` |
+| Selection background | `#345A4A` | `#8FBBA1` | `#9CC5B2` |
 | Selection foreground | `#F0F7F2` | `#1E3A2F` | `#17323D` |
 
 ANSI 16 色也分别配套设计。Ink 是深绿墨底 + 暖白前景 + 琥珀光标；Paper 是暖纸底 + 墨绿前景 + 铜色光标；Porcelain 是冷白底 + 蓝黑前景 + 蓝色光标。Starship 会自动切换到对应的 `dotgraft_ink` / `dotgraft_paper` / `dotgraft_porcelain` 调色板。

@@ -254,6 +254,7 @@ bash tests/smoke.sh
 shellcheck bootstrap.sh dot_local/bin/executable_dotgraft tests/smoke.sh
 shfmt -d -i 2 -ci -sr bootstrap.sh dot_local/bin/executable_dotgraft tests/smoke.sh
 bats tests/unit
+python3 tests/theme-contract.py
 zsh -n dot_config/zsh/init.zsh dot_config/zsh/conf.d/*.zsh
 # 注意：上面的 glob 不包含 *.zsh.tmpl；可选模板由 tests/smoke.sh 渲染后再做 zsh -n
 dotgraft diff     # 改完确认落点
